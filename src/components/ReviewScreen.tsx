@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import {
   makeStyles,
+  mergeClasses,
   tokens,
   Button,
   Text,
@@ -12,6 +13,7 @@ import {
   DialogActions,
   DialogContent,
   Badge,
+  Label,
 } from '@fluentui/react-components';
 import {
   Delete24Regular,
@@ -23,6 +25,7 @@ import {
   Camera24Regular,
 } from '@fluentui/react-icons';
 import { useScanStore } from '@/store/scanStore';
+import { validateAssetTag, validateSerialNumber, formatAssetTag } from '@/types';
 
 const useStyles = makeStyles({
   container: {
@@ -87,7 +90,7 @@ const useStyles = makeStyles({
   listItem: {
     display: 'flex',
     alignItems: 'center',
-    minHeight: '64px',
+    minHeight: '72px',
     padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalM}`,
     borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
     gap: tokens.spacingHorizontalM,
@@ -111,12 +114,18 @@ const useStyles = makeStyles({
   itemContent: {
     flex: 1,
     minWidth: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px',
   },
-  itemText: {
+  itemAssetTag: {
     fontSize: '16px',
-    fontWeight: 500,
+    fontWeight: 600,
     color: tokens.colorNeutralForeground1,
-    wordBreak: 'break-all',
+  },
+  itemSerialNumber: {
+    fontSize: '14px',
+    color: tokens.colorNeutralForeground3,
   },
   itemActions: {
     display: 'flex',
@@ -133,16 +142,6 @@ const useStyles = makeStyles({
   },
   deleteButton: {
     color: tokens.colorStatusDangerForeground1,
-  },
-  editingContainer: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: tokens.spacingHorizontalS,
-    flex: 1,
-  },
-  editInput: {
-    flex: 1,
-    fontSize: '16px',
   },
   emptyState: {
     display: 'flex',
@@ -196,9 +195,22 @@ const useStyles = makeStyles({
     fontSize: '16px',
     fontWeight: 600,
   },
+  dialogInputGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: tokens.spacingVerticalS,
+    marginTop: tokens.spacingVerticalM,
+  },
+  dialogLabel: {
+    fontWeight: 500,
+  },
   dialogInput: {
     width: '100%',
-    marginTop: tokens.spacingVerticalM,
+  },
+  dialogError: {
+    color: tokens.colorStatusDangerForeground1,
+    fontSize: '12px',
+    marginTop: tokens.spacingVerticalXS,
   },
   dialogActions: {
     paddingTop: tokens.spacingVerticalL,
@@ -212,35 +224,90 @@ const useStyles = makeStyles({
 export function ReviewScreen() {
   const styles = useStyles();
   const { session, updateScan, removeScan, addManualEntry, setScreen, setIsScanning } = useScanStore();
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState('');
-  const [newEntryValue, setNewEntryValue] = useState('');
-  const [showAddDialog, setShowAddDialog] = useState(false);
 
-  const handleStartEdit = (id: string, currentValue: string) => {
+  // Edit state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editAssetTag, setEditAssetTag] = useState('');
+  const [editSerialNumber, setEditSerialNumber] = useState('');
+
+  // Add dialog state
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [newAssetTag, setNewAssetTag] = useState('');
+  const [newSerialNumber, setNewSerialNumber] = useState('');
+  const [addError, setAddError] = useState<string | null>(null);
+
+  const handleStartEdit = (id: string, assetTag: string, serialNumber: string) => {
     setEditingId(id);
-    setEditValue(currentValue);
+    setEditAssetTag(assetTag);
+    setEditSerialNumber(serialNumber);
   };
 
   const handleSaveEdit = () => {
-    if (editingId && editValue.trim()) {
-      updateScan(editingId, editValue.trim());
+    if (!editingId) return;
+
+    const formattedAssetTag = formatAssetTag(editAssetTag);
+    const formattedSerialNumber = editSerialNumber.toUpperCase();
+
+    if (!validateAssetTag(formattedAssetTag)) {
+      return; // Show error in future
     }
+    if (!validateSerialNumber(formattedSerialNumber)) {
+      return; // Show error in future
+    }
+
+    updateScan(editingId, 'assetTag', formattedAssetTag);
+    updateScan(editingId, 'serialNumber', formattedSerialNumber);
+
     setEditingId(null);
-    setEditValue('');
+    setEditAssetTag('');
+    setEditSerialNumber('');
   };
 
   const handleCancelEdit = () => {
     setEditingId(null);
-    setEditValue('');
+    setEditAssetTag('');
+    setEditSerialNumber('');
   };
 
   const handleAddEntry = () => {
-    if (newEntryValue.trim()) {
-      addManualEntry(newEntryValue.trim());
-      setNewEntryValue('');
-      setShowAddDialog(false);
+    setAddError(null);
+
+    const formattedAssetTag = formatAssetTag(newAssetTag);
+    const formattedSerialNumber = newSerialNumber.toUpperCase();
+
+    if (!validateAssetTag(formattedAssetTag)) {
+      setAddError('Invalid Asset Tag format. Expected: EW##-#####');
+      return;
     }
+    if (!validateSerialNumber(formattedSerialNumber)) {
+      setAddError('Invalid Serial Number format. Expected: 7 alphanumeric characters');
+      return;
+    }
+
+    // Check for duplicates
+    const isDuplicateAssetTag = session?.records.some(r => r.assetTag === formattedAssetTag);
+    const isDuplicateSerial = session?.records.some(r => r.serialNumber === formattedSerialNumber);
+
+    if (isDuplicateAssetTag) {
+      setAddError(`Asset Tag "${formattedAssetTag}" already exists`);
+      return;
+    }
+    if (isDuplicateSerial) {
+      setAddError(`Serial Number "${formattedSerialNumber}" already exists`);
+      return;
+    }
+
+    addManualEntry(formattedAssetTag, formattedSerialNumber);
+    setNewAssetTag('');
+    setNewSerialNumber('');
+    setShowAddDialog(false);
+  };
+
+  const handleCloseAddDialog = () => {
+    setShowAddDialog(false);
+    setNewAssetTag('');
+    setNewSerialNumber('');
+    setAddError(null);
   };
 
   const handleApprove = () => {
@@ -308,40 +375,46 @@ export function ReviewScreen() {
                 <div className={styles.itemNumber}>{index + 1}</div>
 
                 {editingId === record.id ? (
-                  <div className={styles.editingContainer}>
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <Input
-                      className={styles.editInput}
-                      value={editValue}
-                      onChange={(_, data) => setEditValue(data.value)}
+                      value={editAssetTag}
+                      onChange={(_, data) => setEditAssetTag(data.value)}
+                      placeholder="Asset Tag (EW##-#####)"
                       autoFocus
                     />
-                    <Button
-                      className={styles.actionButton}
-                      appearance="subtle"
-                      icon={<Checkmark24Regular />}
-                      onClick={handleSaveEdit}
+                    <Input
+                      value={editSerialNumber}
+                      onChange={(_, data) => setEditSerialNumber(data.value)}
+                      placeholder="Serial Number"
                     />
-                    <Button
-                      className={styles.actionButton}
-                      appearance="subtle"
-                      icon={<Dismiss24Regular />}
-                      onClick={handleCancelEdit}
-                    />
+                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                      <Button
+                        appearance="subtle"
+                        icon={<Checkmark24Regular />}
+                        onClick={handleSaveEdit}
+                      />
+                      <Button
+                        appearance="subtle"
+                        icon={<Dismiss24Regular />}
+                        onClick={handleCancelEdit}
+                      />
+                    </div>
                   </div>
                 ) : (
                   <>
                     <div className={styles.itemContent}>
-                      <Text className={styles.itemText}>{record.assetTag}</Text>
+                      <Text className={styles.itemAssetTag}>{record.assetTag}</Text>
+                      <Text className={styles.itemSerialNumber}>{record.serialNumber}</Text>
                     </div>
                     <div className={styles.itemActions}>
                       <Button
-                        className={`${styles.actionButton} ${styles.editButton}`}
+                        className={mergeClasses(styles.actionButton, styles.editButton)}
                         appearance="subtle"
                         icon={<Edit24Regular />}
-                        onClick={() => handleStartEdit(record.id, record.assetTag)}
+                        onClick={() => handleStartEdit(record.id, record.assetTag, record.serialNumber)}
                       />
                       <Button
-                        className={`${styles.actionButton} ${styles.deleteButton}`}
+                        className={mergeClasses(styles.actionButton, styles.deleteButton)}
                         appearance="subtle"
                         icon={<Delete24Regular />}
                         onClick={() => removeScan(record.id)}
@@ -378,25 +451,43 @@ export function ReviewScreen() {
       </div>
 
       {/* Add Manual Entry Dialog */}
-      <Dialog open={showAddDialog} onOpenChange={(_, data) => setShowAddDialog(data.open)}>
+      <Dialog open={showAddDialog} onOpenChange={(_, data) => {
+        if (!data.open) handleCloseAddDialog();
+      }}>
         <DialogSurface>
           <DialogBody>
             <DialogTitle>Add Manual Entry</DialogTitle>
             <DialogContent>
-              <Text>Enter the asset tag number manually:</Text>
-              <Input
-                className={styles.dialogInput}
-                value={newEntryValue}
-                onChange={(_, data) => setNewEntryValue(data.value)}
-                placeholder="e.g., EW26-03975"
-                autoFocus
-              />
+              <div className={styles.dialogInputGroup}>
+                <Label className={styles.dialogLabel} htmlFor="assetTag">Asset Tag</Label>
+                <Input
+                  id="assetTag"
+                  className={styles.dialogInput}
+                  value={newAssetTag}
+                  onChange={(_, data) => setNewAssetTag(data.value)}
+                  placeholder="EW##-#####"
+                  autoFocus
+                />
+              </div>
+              <div className={styles.dialogInputGroup}>
+                <Label className={styles.dialogLabel} htmlFor="serialNumber">Serial Number</Label>
+                <Input
+                  id="serialNumber"
+                  className={styles.dialogInput}
+                  value={newSerialNumber}
+                  onChange={(_, data) => setNewSerialNumber(data.value)}
+                  placeholder="7 characters"
+                />
+              </div>
+              {addError && (
+                <Text className={styles.dialogError}>{addError}</Text>
+              )}
             </DialogContent>
             <DialogActions className={styles.dialogActions}>
               <Button
                 className={styles.dialogButton}
                 appearance="secondary"
-                onClick={() => setShowAddDialog(false)}
+                onClick={handleCloseAddDialog}
               >
                 Cancel
               </Button>
@@ -404,7 +495,7 @@ export function ReviewScreen() {
                 className={styles.dialogButton}
                 appearance="primary"
                 onClick={handleAddEntry}
-                disabled={!newEntryValue.trim()}
+                disabled={!newAssetTag.trim() || !newSerialNumber.trim()}
               >
                 Add
               </Button>
