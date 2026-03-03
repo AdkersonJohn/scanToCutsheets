@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "android-emulator": {
+      "command": "node",
+      "args": ["/Volumes/bingobango/code/scanToCutsheets/mcp-servers/android-emulator/index.js"],
+      "env": {
+        "ANDROID_SDK_ROOT": "/Volumes/bingobango/android-sdk",
+        "ADB_PATH": "/Volumes/bingobango/android-sdk/platform-tools/adb",
+        "EMULATOR_PATH": "/Volumes/bingobango/android-sdk/emulator/emulator",
+        "DEFAULT_AVD": "Pixel_7_API_34",
+        "SCREENSHOT_DIR": "/tmp/android-screenshots"
+      }
+    }
+  }
+}
