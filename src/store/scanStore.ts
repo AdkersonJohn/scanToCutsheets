@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
-import type { ScanRecord, ScanningSession, AppScreen, SubmissionResult } from '@/types';
+import type { ScanRecord, ScanningSession, AppScreen, SubmissionResult, ScanMode } from '@/types';
+import { validateAssetTag, validateSerialNumber, formatAssetTag } from '@/types';
 
 interface ScanState {
   currentScreen: AppScreen;
@@ -11,13 +12,19 @@ interface ScanState {
   isSubmitting: boolean;
   submissionProgress: number;
 
+  // Paired scanning state
+  scanMode: ScanMode;
+  pendingAssetTag: string | null;
+
   setScreen: (screen: AppScreen) => void;
   startSession: (userId: string, userName: string) => void;
   endSession: () => void;
-  addScan: (assetTag: string) => void;
-  updateScan: (id: string, assetTag: string) => void;
+  addScan: (code: string) => { success: boolean; error?: string };
+  updateScan: (id: string, field: 'assetTag' | 'serialNumber', value: string) => void;
   removeScan: (id: string) => void;
-  addManualEntry: (assetTag: string) => void;
+  addManualEntry: (assetTag: string, serialNumber: string) => void;
+  cancelPendingAssetTag: () => void;
+  setScanMode: (mode: ScanMode) => void;
   setIsScanning: (scanning: boolean) => void;
   setSubmitting: (submitting: boolean) => void;
   setSubmissionProgress: (progress: number) => void;
@@ -35,6 +42,8 @@ const initialState = {
   submissionResults: [],
   isSubmitting: false,
   submissionProgress: 0,
+  scanMode: 'assetTag' as ScanMode,
+  pendingAssetTag: null as string | null,
 };
 
 export const useScanStore = create<ScanState>()(
@@ -53,7 +62,13 @@ export const useScanStore = create<ScanState>()(
           endedAt: null,
           records: [],
         };
-        set({ session, currentScreen: 'scanning', isScanning: true });
+        set({
+          session,
+          currentScreen: 'scanning',
+          isScanning: true,
+          scanMode: 'assetTag',
+          pendingAssetTag: null,
+        });
       },
 
       endSession: () => {
@@ -63,35 +78,80 @@ export const useScanStore = create<ScanState>()(
             session: { ...session, endedAt: new Date() },
             isScanning: false,
             currentScreen: 'review',
+            scanMode: 'assetTag',
+            pendingAssetTag: null,
           });
         }
       },
 
-      addScan: (assetTag) => {
-        const { session } = get();
-        if (!session) return;
+      addScan: (code) => {
+        const { session, scanMode, pendingAssetTag } = get();
+        if (!session) return { success: false, error: 'No active session' };
 
-        const existingRecord = session.records.find(
-          (r) => r.assetTag === assetTag
-        );
-        if (existingRecord) return;
+        if (scanMode === 'assetTag') {
+          // Format and validate Asset Tag
+          const formattedCode = formatAssetTag(code);
 
-        const newRecord: ScanRecord = {
-          id: uuidv4(),
-          assetTag,
-          scannedAt: new Date(),
-          status: 'pending',
-        };
+          if (!validateAssetTag(formattedCode)) {
+            return { success: false, error: `Invalid Asset Tag format: ${code}. Expected: EW##-#####` };
+          }
 
-        set({
-          session: {
-            ...session,
-            records: [...session.records, newRecord],
-          },
-        });
+          // Check for duplicate Asset Tag
+          const existingRecord = session.records.find(
+            (r) => r.assetTag === formattedCode
+          );
+          if (existingRecord) {
+            return { success: false, error: `Asset Tag "${formattedCode}" already scanned` };
+          }
+
+          // Store pending Asset Tag and switch to Serial Number mode
+          set({
+            pendingAssetTag: formattedCode,
+            scanMode: 'serialNumber'
+          });
+          return { success: true };
+        } else {
+          // Serial Number mode
+          const serialNumber = code.toUpperCase();
+
+          if (!validateSerialNumber(serialNumber)) {
+            return { success: false, error: `Invalid Serial Number format: ${code}. Expected: 7 alphanumeric characters` };
+          }
+
+          // Check for duplicate Serial Number
+          const existingRecord = session.records.find(
+            (r) => r.serialNumber === serialNumber
+          );
+          if (existingRecord) {
+            return { success: false, error: `Serial Number "${serialNumber}" already scanned` };
+          }
+
+          if (!pendingAssetTag) {
+            return { success: false, error: 'No Asset Tag pending. Scan Asset Tag first.' };
+          }
+
+          // Create the complete scan record
+          const newRecord: ScanRecord = {
+            id: uuidv4(),
+            assetTag: pendingAssetTag,
+            serialNumber,
+            scannedAt: new Date(),
+            status: 'pending',
+          };
+
+          set({
+            session: {
+              ...session,
+              records: [...session.records, newRecord],
+            },
+            pendingAssetTag: null,
+            scanMode: 'assetTag',
+          });
+          return { success: true };
+        }
       },
 
-      updateScan: (id, assetTag) => {
+      updateScan: (id, field, value) => {
         const { session } = get();
         if (!session) return;
 
@@ -99,7 +159,7 @@ export const useScanStore = create<ScanState>()(
           session: {
             ...session,
             records: session.records.map((r) =>
-              r.id === id ? { ...r, assetTag } : r
+              r.id === id ? { ...r, [field]: value } : r
             ),
           },
         });
@@ -117,13 +177,14 @@ export const useScanStore = create<ScanState>()(
         });
       },
 
-      addManualEntry: (assetTag) => {
+      addManualEntry: (assetTag, serialNumber) => {
         const { session } = get();
         if (!session) return;
 
         const newRecord: ScanRecord = {
           id: uuidv4(),
-          assetTag,
+          assetTag: formatAssetTag(assetTag),
+          serialNumber: serialNumber.toUpperCase(),
           scannedAt: new Date(),
           status: 'pending',
         };
@@ -134,6 +195,14 @@ export const useScanStore = create<ScanState>()(
             records: [...session.records, newRecord],
           },
         });
+      },
+
+      cancelPendingAssetTag: () => {
+        set({ pendingAssetTag: null, scanMode: 'assetTag' });
+      },
+
+      setScanMode: (mode) => {
+        set({ scanMode: mode });
       },
 
       setIsScanning: (scanning) => set({ isScanning: scanning }),
