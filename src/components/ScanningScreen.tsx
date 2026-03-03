@@ -11,6 +11,9 @@ import {
   Checkmark24Regular,
   Dismiss24Regular,
   Camera24Regular,
+  ArrowUndo24Regular,
+  Tag24Regular,
+  DocumentText24Regular,
 } from '@fluentui/react-icons';
 import { useScanStore } from '@/store/scanStore';
 import {
@@ -197,6 +200,59 @@ const useStyles = makeStyles({
     textAlign: 'center',
     zIndex: 10,
   },
+  scanModeIndicator: {
+    position: 'absolute',
+    top: '50%',
+    left: '50%',
+    transform: 'translate(-50%, -150%)',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    color: '#fff',
+    padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalL}`,
+    borderRadius: tokens.borderRadiusLarge,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: tokens.spacingVerticalS,
+    zIndex: 10,
+    minWidth: '200px',
+    textAlign: 'center',
+  },
+  scanModeLabel: {
+    fontSize: '14px',
+    opacity: 0.8,
+  },
+  scanModeValue: {
+    fontSize: '18px',
+    fontWeight: 600,
+  },
+  pendingAssetTagBanner: {
+    position: 'absolute',
+    top: '90px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    backgroundColor: tokens.colorStatusWarningBackground1,
+    color: tokens.colorStatusWarningForeground1,
+    padding: `${tokens.spacingVerticalS} ${tokens.spacingHorizontalL}`,
+    borderRadius: tokens.borderRadiusLarge,
+    display: 'flex',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalS,
+    zIndex: 10,
+    boxShadow: tokens.shadow16,
+  },
+  cancelButton: {
+    minWidth: 'auto',
+    padding: tokens.spacingHorizontalXS,
+  },
+  scannedItemDetails: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px',
+  },
+  scannedItemSerial: {
+    fontSize: '12px',
+    color: tokens.colorNeutralForeground3,
+  },
 });
 
 const cssAnimation = `
@@ -215,7 +271,7 @@ const cssAnimation = `
 export function ScanningScreen() {
   const styles = useStyles();
   const scannerRef = useRef<HTMLDivElement>(null);
-  const { session, addScan, endSession } = useScanStore();
+  const { session, addScan, endSession, scanMode, pendingAssetTag, cancelPendingAssetTag } = useScanStore();
 
   const [scannerType, setScannerType] = useState<ScannerType | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
@@ -243,18 +299,18 @@ export function ScanningScreen() {
 
   const handleScanSuccess = useCallback(
     (code: string) => {
-      const isDuplicate = session?.records.some((r) => r.assetTag === code);
-      if (isDuplicate) {
-        setError(`"${code}" already scanned`);
-        setTimeout(() => setError(null), 2000);
+      const result = addScan(code);
+
+      if (!result.success) {
+        setError(result.error || 'Scan failed');
+        setTimeout(() => setError(null), 3000);
         return;
       }
 
-      addScan(code);
       setLastScanned(code);
       setTimeout(() => setLastScanned(null), 2000);
     },
-    [addScan, session?.records]
+    [addScan]
   );
 
   useEffect(() => {
@@ -328,6 +384,40 @@ export function ScanningScreen() {
           </div>
         )}
 
+        {/* Scan Mode Indicator */}
+        <div className={styles.scanModeIndicator}>
+          {scanMode === 'assetTag' ? (
+            <>
+              <Tag24Regular style={{ fontSize: '32px' }} />
+              <Text className={styles.scanModeLabel}>Scan</Text>
+              <Text className={styles.scanModeValue}>Asset Tag</Text>
+              <Text className={styles.scanModeLabel}>Format: EW##-#####</Text>
+            </>
+          ) : (
+            <>
+              <DocumentText24Regular style={{ fontSize: '32px' }} />
+              <Text className={styles.scanModeLabel}>Scan</Text>
+              <Text className={styles.scanModeValue}>Serial Number</Text>
+              <Text className={styles.scanModeLabel}>7 characters</Text>
+            </>
+          )}
+        </div>
+
+        {/* Pending Asset Tag Banner */}
+        {pendingAssetTag && (
+          <div className={styles.pendingAssetTagBanner}>
+            <Tag24Regular />
+            <Text weight="semibold">{pendingAssetTag}</Text>
+            <Button
+              className={styles.cancelButton}
+              appearance="subtle"
+              icon={<ArrowUndo24Regular />}
+              onClick={cancelPendingAssetTag}
+              title="Cancel and re-scan Asset Tag"
+            />
+          </div>
+        )}
+
         {/* Header Overlay */}
         <div className={styles.header}>
           <Text className={styles.headerTitle}>Scanning</Text>
@@ -380,7 +470,10 @@ export function ScanningScreen() {
               <div key={record.id} className={styles.scannedItem}>
                 <div className={styles.scannedItemLeft}>
                   <Checkmark24Regular className={styles.itemIcon} />
-                  <Text>{record.assetTag}</Text>
+                  <div className={styles.scannedItemDetails}>
+                    <Text weight="semibold">{record.assetTag}</Text>
+                    <Text className={styles.scannedItemSerial}>{record.serialNumber}</Text>
+                  </div>
                 </div>
               </div>
             ))

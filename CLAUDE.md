@@ -2,6 +2,13 @@
 
 ## Mobile Simulator Configuration
 
+> **IMPORTANT: Only run ONE simulator at a time!**
+> This machine cannot reliably run both iOS and Android simulators simultaneously due to resource constraints.
+> - Complete all iOS simulator testing first
+> - Fully shut down iOS simulator (`xcrun simctl shutdown all`)
+> - Then start Android emulator for Android testing
+> - Never run both simulators concurrently
+
 ### iOS Simulator
 
 **Location:** Xcode is installed on the external drive at `/Volumes/bingobango/Xcode.app`
@@ -135,6 +142,87 @@ This runs `./scripts/dev-mobile.sh` which:
 ```bash
 npm run dev:web
 ```
+
+---
+
+## Barcode Scanning Implementation
+
+### Scan Pair Workflow
+The app captures barcodes in pairs:
+1. **Asset Tag** (first scan) - Format: `EW##-#####` (e.g., EW26-03975)
+2. **Serial Number** (second scan) - Format: 7 alphanumeric characters (e.g., ABC1234)
+
+The scanning screen shows which type is expected and validates the format before accepting.
+
+### Validation Patterns
+```typescript
+// Asset Tag: EW followed by 2 digits, hyphen, 5 digits
+const ASSET_TAG_PATTERN = /^EW\d{2}-\d{5}$/;
+
+// Serial Number: exactly 7 alphanumeric characters
+const SERIAL_NUMBER_PATTERN = /^[A-Z0-9]{7}$/i;
+```
+
+### Scanner Types
+1. **Teams Native** (`microsoftTeams.barCode.scanBarCode`) - Used when running inside Microsoft Teams app
+2. **Quagga2** - Browser-based fallback using camera for standalone testing
+
+### Supported Barcode Formats
+- Code 128
+- Code 39
+- EAN
+- UPC
+
+---
+
+## Azure Configuration
+
+### App Registration (Personal Tenant - Demo)
+- **App Name:** Scan to Cut Sheets
+- **Client ID:** `2f32f0cc-9c19-43f2-9c1c-6dd2b7b8b749`
+- **Tenant ID:** `d5a7739d-02bc-4ac7-8edd-9c2253141e57`
+- **Application ID URI:** `api://localhost:5173/2f32f0cc-9c19-43f2-9c1c-6dd2b7b8b749`
+- **Subscription:** Azure subscription 1 (Free tier)
+
+### API Permissions (Delegated)
+- `User.Read` - Read user profile
+- `Sites.ReadWrite.All` - Read/write SharePoint sites
+
+### Redirect URIs (SPA)
+- `http://localhost:5173`
+- `http://localhost:5173/auth-end`
+
+### Pre-authorized Teams Clients
+- `1fec8e78-bce4-4aaf-ab1b-5451cc387264` - Teams desktop/mobile
+- `5e3ce6c0-2b1f-4285-8d4b-75ee78787346` - Teams web
+
+### Environment Variables
+Stored in `.env.local` (not committed to git):
+```bash
+VITE_AZURE_CLIENT_ID=2f32f0cc-9c19-43f2-9c1c-6dd2b7b8b749
+VITE_AZURE_TENANT_ID=d5a7739d-02bc-4ac7-8edd-9c2253141e57
+VITE_AZURE_REDIRECT_URI=http://localhost:5173
+VITE_TEAMS_APP_ID_URI=api://localhost:5173/2f32f0cc-9c19-43f2-9c1c-6dd2b7b8b749
+```
+
+### Azure CLI Commands
+```bash
+# Login
+az login
+
+# View app registration
+az ad app show --id "2f32f0cc-9c19-43f2-9c1c-6dd2b7b8b749"
+
+# Grant admin consent
+az ad app permission admin-consent --id "2f32f0cc-9c19-43f2-9c1c-6dd2b7b8b749"
+```
+
+### Migration to Corporate Tenant
+When ready to move to Encore's tenant:
+1. Create new app registration in Encore's Entra ID
+2. Update `.env.local` with new Client ID and Tenant ID
+3. Update Application ID URI to use production domain
+4. Have Encore admin grant API permissions consent
 
 ---
 
