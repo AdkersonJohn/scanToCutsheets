@@ -31,5 +31,9 @@ npm-debug.log*
 page-*.png
 screenshot-*.png
 
+# Allow Teams icons
+!teams/*.png
+
 # Azure Functions local settings
 backend/local.settings.json
+*.zip
