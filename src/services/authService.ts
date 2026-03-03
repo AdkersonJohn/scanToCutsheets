@@ -139,8 +139,26 @@ export async function getAccessToken(): Promise<string | null> {
 
 async function getTeamsAccessToken(): Promise<string | null> {
   try {
-    const token = await microsoftTeams.authentication.getAuthToken();
-    return token;
+    // Get the SSO token from Teams
+    const ssoToken = await microsoftTeams.authentication.getAuthToken();
+
+    // Exchange it for a Graph API token via the Azure Function
+    const apiBaseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:7071/api';
+    const response = await fetch(`${apiBaseUrl}/exchange-token`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ ssoToken }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Token exchange failed');
+    }
+
+    const { accessToken } = await response.json();
+    return accessToken;
   } catch (error) {
     console.error('Failed to get Teams auth token:', error);
     return null;
