@@ -10,7 +10,8 @@
     "dev:android": "vite --host & sleep 3 && ~/Library/Android/sdk/emulator/emulator -avd Pixel_3a_API_30_x86 & sleep 15 && ~/Library/Android/sdk/platform-tools/adb shell am start -a android.intent.action.VIEW -d 'http://10.0.2.2:5173'",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "package:teams": "./scripts/package-teams.sh"
   },
   "dependencies": {
     "@azure/msal-browser": "^3.30.0",

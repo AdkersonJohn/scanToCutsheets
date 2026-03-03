@@ -1,0 +1,40 @@
+{
+  "$schema": "https://developer.microsoft.com/en-us/json-schemas/teams/v1.16/MicrosoftTeams.schema.json",
+  "manifestVersion": "1.16",
+  "version": "1.0.0",
+  "id": "4415ef9a-9821-47ea-8fcc-64fbfd4db16a",
+  "packageName": "com.scanToCutsheets",
+  "developer": {
+    "name": "John Adkerson",
+    "websiteUrl": "https://github.com/AdkersonJohn/scanToCutsheets",
+    "privacyUrl": "https://github.com/AdkersonJohn/scanToCutsheets",
+    "termsOfUseUrl": "https://github.com/AdkersonJohn/scanToCutsheets"
+  },
+  "icons": {
+    "color": "color.png",
+    "outline": "outline.png"
+  },
+  "name": {
+    "short": "Scan to Cut Sheets",
+    "full": "Scan to Cut Sheets - Asset Tag Scanner"
+  },
+  "description": {
+    "short": "Scan asset tag barcodes to create cut sheets",
+    "full": "Scan asset tag barcodes from computer boxes using your phone camera, then batch-create cut sheet records in SharePoint."
+  },
+  "accentColor": "#5B5FC7",
+  "staticTabs": [
+    {
+      "entityId": "scanTab",
+      "name": "Scan",
+      "contentUrl": "https://localhost:5173",
+      "scopes": ["personal"]
+    }
+  ],
+  "permissions": ["identity", "messageTeamMembers"],
+  "validDomains": ["localhost:5173", "*.login.microsoftonline.com", "*.sharepoint.com"],
+  "webApplicationInfo": {
+    "id": "2f32f0cc-9c19-43f2-9c1c-6dd2b7b8b749",
+    "resource": "api://localhost:5173/2f32f0cc-9c19-43f2-9c1c-6dd2b7b8b749"
+  }
+}
