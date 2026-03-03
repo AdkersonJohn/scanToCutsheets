@@ -1,6 +1,8 @@
-import { makeStyles, tokens, Button, Text } from '@fluentui/react-components';
-import { Camera24Regular, History24Regular } from '@fluentui/react-icons';
+import { useState, useEffect } from 'react';
+import { makeStyles, tokens, Button, Text, Spinner } from '@fluentui/react-components';
+import { Camera24Regular, History24Regular, Person24Regular, SignOut24Regular } from '@fluentui/react-icons';
 import { useScanStore } from '@/store/scanStore';
+import { initializeAuth, login, logout, getCurrentUser, isAuthenticated } from '@/services/authService';
 
 const useStyles = makeStyles({
   container: {
@@ -12,6 +14,25 @@ const useStyles = makeStyles({
     paddingBottom: 'max(env(safe-area-inset-bottom), 16px)',
     paddingLeft: 'max(env(safe-area-inset-left), 24px)',
     paddingRight: 'max(env(safe-area-inset-right), 24px)',
+  },
+  header: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalS,
+    paddingBottom: tokens.spacingVerticalM,
+  },
+  userInfo: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: tokens.spacingHorizontalS,
+    backgroundColor: tokens.colorNeutralBackground3,
+    padding: `${tokens.spacingVerticalXS} ${tokens.spacingHorizontalM}`,
+    borderRadius: tokens.borderRadiusMedium,
+  },
+  userName: {
+    fontSize: '13px',
+    color: tokens.colorNeutralForeground2,
   },
   content: {
     flex: 1,
@@ -71,15 +92,6 @@ const useStyles = makeStyles({
     fontWeight: 500,
     borderRadius: tokens.borderRadiusLarge,
   },
-  resumeBadge: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: tokens.spacingHorizontalXS,
-    backgroundColor: tokens.colorNeutralBackground3,
-    padding: `${tokens.spacingVerticalXS} ${tokens.spacingHorizontalM}`,
-    borderRadius: tokens.borderRadiusMedium,
-    marginTop: tokens.spacingVerticalS,
-  },
   footer: {
     textAlign: 'center',
     paddingTop: tokens.spacingVerticalL,
@@ -88,14 +100,72 @@ const useStyles = makeStyles({
     fontSize: '13px',
     color: tokens.colorNeutralForeground3,
   },
+  loadingContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: tokens.spacingVerticalM,
+  },
 });
 
 export function HomeScreen() {
   const styles = useStyles();
   const { startSession, session, setScreen } = useScanStore();
 
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState<{ id: string; displayName: string; email: string } | null>(null);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  useEffect(() => {
+    const init = async () => {
+      try {
+        await initializeAuth();
+        const authenticated = await isAuthenticated();
+        setIsLoggedIn(authenticated);
+        if (authenticated) {
+          const userInfo = await getCurrentUser();
+          setUser(userInfo);
+        }
+      } catch (error) {
+        console.error('Auth initialization failed:', error);
+      } finally {
+        setIsInitializing(false);
+      }
+    };
+    init();
+  }, []);
+
+  const handleLogin = async () => {
+    setIsLoggingIn(true);
+    try {
+      await login();
+      const userInfo = await getCurrentUser();
+      setUser(userInfo);
+      setIsLoggedIn(true);
+    } catch (error) {
+      console.error('Login failed:', error);
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      setUser(null);
+      setIsLoggedIn(false);
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
+
   const handleStartScanning = () => {
-    startSession('temp-user-id', 'Current User');
+    if (user) {
+      startSession(user.id, user.displayName);
+    } else {
+      startSession('anonymous', 'Anonymous User');
+    }
   };
 
   const handleResumeSession = () => {
@@ -106,8 +176,39 @@ export function HomeScreen() {
 
   const hasExistingSession = session && session.records.length > 0;
 
+  if (isInitializing) {
+    return (
+      <div className={styles.container}>
+        <div className={styles.content}>
+          <div className={styles.loadingContainer}>
+            <Spinner size="large" />
+            <Text>Initializing...</Text>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.container}>
+      {/* Header with user info */}
+      <div className={styles.header}>
+        {isLoggedIn && user ? (
+          <>
+            <div className={styles.userInfo}>
+              <Person24Regular />
+              <Text className={styles.userName}>{user.displayName}</Text>
+            </div>
+            <Button
+              appearance="subtle"
+              icon={<SignOut24Regular />}
+              onClick={handleLogout}
+              title="Sign out"
+            />
+          </>
+        ) : null}
+      </div>
+
       <div className={styles.content}>
         <div className={styles.iconContainer}>
           <Camera24Regular className={styles.icon} />
@@ -122,24 +223,38 @@ export function HomeScreen() {
         </Text>
 
         <div className={styles.buttonContainer}>
-          <Button
-            className={styles.primaryButton}
-            appearance="primary"
-            icon={<Camera24Regular />}
-            onClick={handleStartScanning}
-          >
-            Start Scanning
-          </Button>
-
-          {hasExistingSession && (
+          {!isLoggedIn ? (
             <Button
-              className={styles.secondaryButton}
-              appearance="secondary"
-              icon={<History24Regular />}
-              onClick={handleResumeSession}
+              className={styles.primaryButton}
+              appearance="primary"
+              icon={<Person24Regular />}
+              onClick={handleLogin}
+              disabled={isLoggingIn}
             >
-              Resume Session ({session.records.length} items)
+              {isLoggingIn ? 'Signing in...' : 'Sign in with Microsoft'}
             </Button>
+          ) : (
+            <>
+              <Button
+                className={styles.primaryButton}
+                appearance="primary"
+                icon={<Camera24Regular />}
+                onClick={handleStartScanning}
+              >
+                Start Scanning
+              </Button>
+
+              {hasExistingSession && (
+                <Button
+                  className={styles.secondaryButton}
+                  appearance="secondary"
+                  icon={<History24Regular />}
+                  onClick={handleResumeSession}
+                >
+                  Resume Session ({session.records.length} items)
+                </Button>
+              )}
+            </>
           )}
         </div>
       </div>

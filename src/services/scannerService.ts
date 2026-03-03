@@ -69,6 +69,8 @@ export function initializeQuaggaScanner(config: QuaggaScannerConfig): void {
         readers: [
           'code_128_reader',
           'code_39_reader',
+          'ean_reader',
+          'upc_reader',
         ],
         multiple: false,
       },
