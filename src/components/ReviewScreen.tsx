@@ -229,6 +229,10 @@ export function ReviewScreen() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editAssetTag, setEditAssetTag] = useState('');
   const [editSerialNumber, setEditSerialNumber] = useState('');
+  const [editError, setEditError] = useState<string | null>(null);
+
+  // Confirmation dialog state
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   // Add dialog state
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -240,19 +244,40 @@ export function ReviewScreen() {
     setEditingId(id);
     setEditAssetTag(assetTag);
     setEditSerialNumber(serialNumber);
+    setEditError(null);
   };
 
   const handleSaveEdit = () => {
     if (!editingId) return;
+    setEditError(null);
 
     const formattedAssetTag = formatAssetTag(editAssetTag);
     const formattedSerialNumber = editSerialNumber.toUpperCase();
 
     if (!validateAssetTag(formattedAssetTag)) {
-      return; // Show error in future
+      setEditError('Invalid Asset Tag format. Expected: EW##-#####');
+      return;
     }
     if (!validateSerialNumber(formattedSerialNumber)) {
-      return; // Show error in future
+      setEditError('Invalid Serial Number format. Expected: 7 alphanumeric characters');
+      return;
+    }
+
+    // Check for duplicates (excluding current record)
+    const isDuplicateAssetTag = session?.records.some(
+      (r) => r.id !== editingId && r.assetTag === formattedAssetTag
+    );
+    const isDuplicateSerial = session?.records.some(
+      (r) => r.id !== editingId && r.serialNumber === formattedSerialNumber
+    );
+
+    if (isDuplicateAssetTag) {
+      setEditError(`Asset Tag "${formattedAssetTag}" already exists`);
+      return;
+    }
+    if (isDuplicateSerial) {
+      setEditError(`Serial Number "${formattedSerialNumber}" already exists`);
+      return;
     }
 
     updateScan(editingId, 'assetTag', formattedAssetTag);
@@ -261,12 +286,14 @@ export function ReviewScreen() {
     setEditingId(null);
     setEditAssetTag('');
     setEditSerialNumber('');
+    setEditError(null);
   };
 
   const handleCancelEdit = () => {
     setEditingId(null);
     setEditAssetTag('');
     setEditSerialNumber('');
+    setEditError(null);
   };
 
   const handleAddEntry = () => {
@@ -311,6 +338,11 @@ export function ReviewScreen() {
   };
 
   const handleApprove = () => {
+    setShowConfirmDialog(true);
+  };
+
+  const handleConfirmSubmit = () => {
+    setShowConfirmDialog(false);
     setScreen('submission');
   };
 
@@ -378,15 +410,24 @@ export function ReviewScreen() {
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <Input
                       value={editAssetTag}
-                      onChange={(_, data) => setEditAssetTag(data.value)}
+                      onChange={(_, data) => {
+                        setEditAssetTag(data.value);
+                        setEditError(null);
+                      }}
                       placeholder="Asset Tag (EW##-#####)"
                       autoFocus
                     />
                     <Input
                       value={editSerialNumber}
-                      onChange={(_, data) => setEditSerialNumber(data.value)}
+                      onChange={(_, data) => {
+                        setEditSerialNumber(data.value);
+                        setEditError(null);
+                      }}
                       placeholder="Serial Number"
                     />
+                    {editError && (
+                      <Text className={styles.dialogError}>{editError}</Text>
+                    )}
                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                       <Button
                         appearance="subtle"
@@ -498,6 +539,39 @@ export function ReviewScreen() {
                 disabled={!newAssetTag.trim() || !newSerialNumber.trim()}
               >
                 Add
+              </Button>
+            </DialogActions>
+          </DialogBody>
+        </DialogSurface>
+      </Dialog>
+
+      {/* Confirm Submit Dialog */}
+      <Dialog open={showConfirmDialog} onOpenChange={(_, data) => {
+        if (!data.open) setShowConfirmDialog(false);
+      }}>
+        <DialogSurface>
+          <DialogBody>
+            <DialogTitle>Confirm Submission</DialogTitle>
+            <DialogContent>
+              <Text>
+                You are about to create {records.length} cut sheet{records.length !== 1 ? 's' : ''} in SharePoint.
+                This action cannot be undone.
+              </Text>
+            </DialogContent>
+            <DialogActions className={styles.dialogActions}>
+              <Button
+                className={styles.dialogButton}
+                appearance="secondary"
+                onClick={() => setShowConfirmDialog(false)}
+              >
+                Cancel
+              </Button>
+              <Button
+                className={styles.dialogButton}
+                appearance="primary"
+                onClick={handleConfirmSubmit}
+              >
+                Submit
               </Button>
             </DialogActions>
           </DialogBody>

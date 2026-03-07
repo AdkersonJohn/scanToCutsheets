@@ -213,12 +213,17 @@ export async function getCurrentUser(): Promise<{ id: string; displayName: strin
     };
   }
 
-  // Fallback for development
-  return {
-    id: 'dev-user-id',
-    displayName: 'Development User',
-    email: 'dev@example.com',
-  };
+  // Fallback for development only - never allow in production
+  if (import.meta.env.DEV) {
+    console.warn('Using development fallback user - this should only appear in development');
+    return {
+      id: 'dev-user-id',
+      displayName: 'Development User',
+      email: 'dev@example.com',
+    };
+  }
+
+  throw new Error('No authenticated user found. Please sign in.');
 }
 
 export async function isAuthenticated(): Promise<boolean> {

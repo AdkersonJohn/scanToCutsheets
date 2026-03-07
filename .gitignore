@@ -31,6 +31,9 @@ npm-debug.log*
 page-*.png
 screenshot-*.png
 
+# Coverage reports
+coverage/
+
 # Allow Teams icons
 !teams/*.png
 
