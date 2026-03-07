@@ -17,6 +17,12 @@ import {
 } from '@fluentui/react-icons';
 import { useScanStore } from '@/store/scanStore';
 import { triggerHapticFeedback } from '@/services/scannerService';
+import {
+  submitCutSheets,
+  getConfiguredSiteId,
+  getConfiguredListId,
+  isSharePointConfigured,
+} from '@/services/sharePointService';
 
 const useStyles = makeStyles({
   container: {
@@ -201,29 +207,42 @@ export function SubmissionScreen() {
 
       setSubmitting(true);
       const records = session.records.filter((r) => r.status === 'pending');
-      const total = records.length;
 
-      for (let i = 0; i < records.length; i++) {
-        const record = records[i];
+      // Check if SharePoint is configured
+      const siteId = getConfiguredSiteId();
+      const listId = getConfiguredListId();
 
-        try {
-          // TODO: Replace with actual Graph API call
-          await new Promise((resolve) => setTimeout(resolve, 500));
+      if (!isSharePointConfigured() || !siteId || !listId) {
+        // Demo mode: simulate submission when SharePoint is not configured
+        console.warn('SharePoint not configured. Running in demo mode.');
 
-          // Simulate success (90% success rate for demo)
-          if (Math.random() > 0.1) {
-            markRecordSubmitted(record.id);
-          } else {
-            markRecordFailed(record.id, 'Simulated error for demo');
-          }
-        } catch (error) {
-          markRecordFailed(
-            record.id,
-            error instanceof Error ? error.message : 'Unknown error'
-          );
+        for (let i = 0; i < records.length; i++) {
+          const record = records[i];
+
+          // Simulate API delay
+          await new Promise((resolve) => setTimeout(resolve, 300));
+
+          // Demo mode: 100% success rate
+          console.log(`[DEMO] Would create cut sheet for: ${record.assetTag} / ${record.serialNumber}`);
+          markRecordSubmitted(record.id);
+          setSubmissionProgress(((i + 1) / records.length) * 100);
         }
-
-        setSubmissionProgress(((i + 1) / total) * 100);
+      } else {
+        // Real SharePoint submission
+        await submitCutSheets(
+          siteId,
+          listId,
+          records,
+          session.userName,
+          (progress) => {
+            if (progress.success) {
+              markRecordSubmitted(progress.recordId);
+            } else {
+              markRecordFailed(progress.recordId, progress.error || 'Unknown error');
+            }
+            setSubmissionProgress((progress.completed / progress.total) * 100);
+          }
+        );
       }
 
       setSubmitting(false);

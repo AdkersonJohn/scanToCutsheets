@@ -1,6 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
-import { getTeamsSSOToken, exchangeTokenForGraphToken, getCurrentUser } from '@/services/authService';
-import { initializeGraphClient } from '@/services/graphClient';
+import {
+  initializeAuth,
+  getAccessToken,
+  getCurrentUser,
+  login,
+  isAuthenticated as checkIsAuthenticated,
+} from '@/services/authService';
+import { resetClient } from '@/services/sharePointService';
 
 interface AuthState {
   isAuthenticated: boolean;
@@ -25,22 +31,39 @@ export function useAuth() {
     setState((prev) => ({ ...prev, isLoading: true, error: null }));
 
     try {
-      const ssoToken = await getTeamsSSOToken();
-      const graphToken = await exchangeTokenForGraphToken(ssoToken);
-      initializeGraphClient(graphToken);
+      await initializeAuth();
 
-      const user = await getCurrentUser();
+      // Check if already authenticated
+      const authenticated = await checkIsAuthenticated();
 
-      setState({
-        isAuthenticated: true,
-        isLoading: false,
-        error: null,
-        user,
-      });
+      if (authenticated) {
+        // Get access token to ensure it's valid
+        const token = await getAccessToken();
+        if (!token) {
+          throw new Error('Failed to get access token');
+        }
+
+        const user = await getCurrentUser();
+
+        setState({
+          isAuthenticated: true,
+          isLoading: false,
+          error: null,
+          user,
+        });
+      } else {
+        // Not authenticated yet
+        setState({
+          isAuthenticated: false,
+          isLoading: false,
+          error: null,
+          user: null,
+        });
+      }
     } catch (error) {
-      console.error('Authentication failed:', error);
+      console.error('Authentication check failed:', error);
 
-      // For development, allow unauthenticated access
+      // For development, allow unauthenticated access with fallback user
       const user = await getCurrentUser();
       setState({
         isAuthenticated: false,
@@ -51,6 +74,33 @@ export function useAuth() {
     }
   }, []);
 
+  const signIn = useCallback(async () => {
+    setState((prev) => ({ ...prev, isLoading: true, error: null }));
+
+    try {
+      const account = await login();
+      if (account) {
+        // Reset the Graph client so it gets a fresh token
+        resetClient();
+
+        const user = await getCurrentUser();
+        setState({
+          isAuthenticated: true,
+          isLoading: false,
+          error: null,
+          user,
+        });
+      }
+    } catch (error) {
+      console.error('Sign in failed:', error);
+      setState((prev) => ({
+        ...prev,
+        isLoading: false,
+        error: error instanceof Error ? error.message : 'Sign in failed',
+      }));
+    }
+  }, []);
+
   useEffect(() => {
     authenticate();
   }, [authenticate]);
@@ -58,5 +108,6 @@ export function useAuth() {
   return {
     ...state,
     authenticate,
+    signIn,
   };
 }

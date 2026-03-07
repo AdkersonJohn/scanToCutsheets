@@ -224,15 +224,29 @@ export function HomeScreen() {
 
         <div className={styles.buttonContainer}>
           {!isLoggedIn ? (
-            <Button
-              className={styles.primaryButton}
-              appearance="primary"
-              icon={<Person24Regular />}
-              onClick={handleLogin}
-              disabled={isLoggingIn}
-            >
-              {isLoggingIn ? 'Signing in...' : 'Sign in with Microsoft'}
-            </Button>
+            <>
+              <Button
+                className={styles.primaryButton}
+                appearance="primary"
+                icon={<Person24Regular />}
+                onClick={handleLogin}
+                disabled={isLoggingIn}
+              >
+                {isLoggingIn ? 'Signing in...' : 'Sign in with Microsoft'}
+              </Button>
+
+              {/* Demo mode for development/testing */}
+              {import.meta.env.DEV && (
+                <Button
+                  className={styles.secondaryButton}
+                  appearance="secondary"
+                  icon={<Camera24Regular />}
+                  onClick={handleStartScanning}
+                >
+                  Start Demo Mode
+                </Button>
+              )}
+            </>
           ) : (
             <>
               <Button
