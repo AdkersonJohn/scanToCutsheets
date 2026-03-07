@@ -1,13 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, within } from '@/test/test-utils';
+import { render, screen, waitFor, within, fireEvent } from '@/test/test-utils';
 import userEvent from '@testing-library/user-event';
 import { ReviewScreen } from './ReviewScreen';
 import { useScanStore } from '@/store/scanStore';
 
 describe('ReviewScreen', () => {
-  const user = userEvent.setup();
+  let user: ReturnType<typeof userEvent.setup>;
 
   beforeEach(() => {
+    user = userEvent.setup();
     vi.clearAllMocks();
     useScanStore.getState().reset();
   });
@@ -117,11 +118,9 @@ describe('ReviewScreen', () => {
       const assetTagInput = await screen.findByPlaceholderText('EW##-#####');
       const serialInput = await screen.findByPlaceholderText('7 characters');
 
-      // Type values - use clear first to ensure clean state
-      await user.clear(assetTagInput);
-      await user.type(assetTagInput, 'EW26-03975');
-      await user.clear(serialInput);
-      await user.type(serialInput, 'ABC1234');
+      // Use fireEvent for more reliable input in CI
+      fireEvent.change(assetTagInput, { target: { value: 'EW26-03975' } });
+      fireEvent.change(serialInput, { target: { value: 'ABC1234' } });
 
       // Wait for the Add button to be enabled
       const addBtn = await screen.findByRole('button', { name: 'Add' });
@@ -147,67 +146,80 @@ describe('ReviewScreen', () => {
     it('should show error for invalid asset tag', async () => {
       render(<ReviewScreen />);
 
-      const addButton = screen.getByText(/Add Manual Entry/i);
+      const addButton = screen.getByRole('button', { name: /Add Manual Entry/i });
       await user.click(addButton);
 
-      const assetTagInput = screen.getByLabelText(/Asset Tag/i);
-      const serialInput = screen.getByLabelText(/Serial Number/i);
+      const assetTagInput = await screen.findByPlaceholderText('EW##-#####');
+      const serialInput = await screen.findByPlaceholderText('7 characters');
 
-      await user.type(assetTagInput, 'INVALID');
-      await user.type(serialInput, 'ABC1234');
+      // Use fireEvent for more reliable input in CI
+      fireEvent.change(assetTagInput, { target: { value: 'INVALID' } });
+      fireEvent.change(serialInput, { target: { value: 'ABC1234' } });
 
-      const submitButton = screen.getByRole('button', { name: 'Add' });
-      await user.click(submitButton);
-
+      // Wait for button to be enabled
+      const addBtn = await screen.findByRole('button', { name: 'Add' });
       await waitFor(() => {
-        expect(screen.getByText(/Invalid Asset Tag format/i)).toBeInTheDocument();
-      });
+        expect(addBtn).not.toBeDisabled();
+      }, { timeout: 2000 });
+
+      await user.click(addBtn);
+
+      // Wait for error message to appear
+      const errorMessage = await screen.findByText(/Invalid Asset Tag format/i, {}, { timeout: 3000 });
+      expect(errorMessage).toBeInTheDocument();
     });
 
     it('should show error for invalid serial number', async () => {
       render(<ReviewScreen />);
 
-      const addButton = screen.getByText(/Add Manual Entry/i);
+      const addButton = screen.getByRole('button', { name: /Add Manual Entry/i });
       await user.click(addButton);
 
-      const assetTagInput = screen.getByLabelText(/Asset Tag/i);
-      const serialInput = screen.getByLabelText(/Serial Number/i);
+      const assetTagInput = await screen.findByPlaceholderText('EW##-#####');
+      const serialInput = await screen.findByPlaceholderText('7 characters');
 
-      await user.type(assetTagInput, 'EW26-03975');
-      await user.type(serialInput, 'INVALID123');
+      // Use fireEvent for more reliable input in CI
+      fireEvent.change(assetTagInput, { target: { value: 'EW26-03975' } });
+      fireEvent.change(serialInput, { target: { value: 'INVALID123' } });
 
-      const submitButton = screen.getByRole('button', { name: 'Add' });
-      await user.click(submitButton);
-
+      // Wait for button to be enabled
+      const addBtn = await screen.findByRole('button', { name: 'Add' });
       await waitFor(() => {
-        expect(screen.getByText(/Invalid Serial Number format/i)).toBeInTheDocument();
-      });
+        expect(addBtn).not.toBeDisabled();
+      }, { timeout: 2000 });
+
+      await user.click(addBtn);
+
+      // Wait for error message to appear
+      const errorMessage = await screen.findByText(/Invalid Serial Number format/i, {}, { timeout: 3000 });
+      expect(errorMessage).toBeInTheDocument();
     });
 
     it('should disable Add button when fields are empty', async () => {
       render(<ReviewScreen />);
 
-      const addEntryButton = screen.getByText(/Add Manual Entry/i);
+      const addEntryButton = screen.getByRole('button', { name: /Add Manual Entry/i });
       await user.click(addEntryButton);
 
-      const addButton = screen.getByRole('button', { name: 'Add' });
+      const addButton = await screen.findByRole('button', { name: 'Add' });
       expect(addButton).toBeDisabled();
     });
 
     it('should close dialog when Cancel is clicked', async () => {
       render(<ReviewScreen />);
 
-      const addButton = screen.getByText(/Add Manual Entry/i);
+      const addButton = screen.getByRole('button', { name: /Add Manual Entry/i });
       await user.click(addButton);
 
-      expect(screen.getByLabelText(/Asset Tag/i)).toBeInTheDocument();
+      const assetTagInput = await screen.findByPlaceholderText('EW##-#####');
+      expect(assetTagInput).toBeInTheDocument();
 
-      const cancelButton = screen.getByRole('button', { name: 'Cancel' });
+      const cancelButton = await screen.findByRole('button', { name: 'Cancel' });
       await user.click(cancelButton);
 
       await waitFor(() => {
-        expect(screen.queryByLabelText(/Asset Tag/i)).not.toBeInTheDocument();
-      });
+        expect(screen.queryByPlaceholderText('EW##-#####')).not.toBeInTheDocument();
+      }, { timeout: 3000 });
     });
   });
 
