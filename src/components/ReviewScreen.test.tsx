@@ -117,26 +117,29 @@ describe('ReviewScreen', () => {
       const assetTagInput = await screen.findByPlaceholderText('EW##-#####');
       const serialInput = await screen.findByPlaceholderText('7 characters');
 
-      // Type values
+      // Type values - use clear first to ensure clean state
+      await user.clear(assetTagInput);
       await user.type(assetTagInput, 'EW26-03975');
+      await user.clear(serialInput);
       await user.type(serialInput, 'ABC1234');
 
-      // Find and click the Add button (not disabled now that fields have values)
+      // Wait for the Add button to be enabled
+      const addBtn = await screen.findByRole('button', { name: 'Add' });
       await waitFor(() => {
-        const addBtn = screen.getByRole('button', { name: 'Add' });
         expect(addBtn).not.toBeDisabled();
-      });
+      }, { timeout: 2000 });
 
-      const submitButton = screen.getByRole('button', { name: 'Add' });
-      await user.click(submitButton);
+      // Click the Add button
+      await user.click(addBtn);
 
-      // Verify record was added to store
+      // Wait for dialog to close (input should no longer be in document)
       await waitFor(() => {
-        const session = useScanStore.getState().session;
-        expect(session?.records.length).toBe(1);
+        expect(screen.queryByPlaceholderText('EW##-#####')).not.toBeInTheDocument();
       }, { timeout: 3000 });
 
+      // Verify record was added to store
       const session = useScanStore.getState().session;
+      expect(session?.records.length).toBe(1);
       expect(session?.records[0].assetTag).toBe('EW26-03975');
       expect(session?.records[0].serialNumber).toBe('ABC1234');
     });
