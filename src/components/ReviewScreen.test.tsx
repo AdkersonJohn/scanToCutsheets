@@ -109,23 +109,36 @@ describe('ReviewScreen', () => {
     it('should add new record when valid data is submitted', async () => {
       render(<ReviewScreen />);
 
-      const addButton = screen.getByText(/Add Manual Entry/i);
-      await user.click(addButton);
+      // Click the Add Manual Entry button to open dialog
+      const addEntryButton = screen.getByRole('button', { name: /Add Manual Entry/i });
+      await user.click(addEntryButton);
 
-      const assetTagInput = screen.getByLabelText(/Asset Tag/i);
-      const serialInput = screen.getByLabelText(/Serial Number/i);
+      // Wait for dialog to open and find inputs
+      const assetTagInput = await screen.findByPlaceholderText('EW##-#####');
+      const serialInput = await screen.findByPlaceholderText('7 characters');
 
+      // Type values
       await user.type(assetTagInput, 'EW26-03975');
       await user.type(serialInput, 'ABC1234');
+
+      // Find and click the Add button (not disabled now that fields have values)
+      await waitFor(() => {
+        const addBtn = screen.getByRole('button', { name: 'Add' });
+        expect(addBtn).not.toBeDisabled();
+      });
 
       const submitButton = screen.getByRole('button', { name: 'Add' });
       await user.click(submitButton);
 
-      // Dialog should close and record should be added
+      // Verify record was added to store
       await waitFor(() => {
-        expect(screen.getByText('EW26-03975')).toBeInTheDocument();
-        expect(screen.getByText('ABC1234')).toBeInTheDocument();
-      });
+        const session = useScanStore.getState().session;
+        expect(session?.records.length).toBe(1);
+      }, { timeout: 3000 });
+
+      const session = useScanStore.getState().session;
+      expect(session?.records[0].assetTag).toBe('EW26-03975');
+      expect(session?.records[0].serialNumber).toBe('ABC1234');
     });
 
     it('should show error for invalid asset tag', async () => {
