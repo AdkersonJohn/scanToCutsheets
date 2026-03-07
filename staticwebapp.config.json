@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json.schemastore.org/staticwebapp.config.json",
+  "navigationFallback": {
+    "rewrite": "/index.html",
+    "exclude": ["/assets/*", "/*.js", "/*.css", "/*.ico", "/*.png", "/*.svg", "/api/*"]
+  },
+  "routes": [
+    {
+      "route": "/api/*",
+      "allowedRoles": ["authenticated", "anonymous"]
+    },
+    {
+      "route": "/.auth/login/aad",
+      "statusCode": 200
+    },
+    {
+      "route": "/.auth/logout",
+      "statusCode": 200
+    }
+  ],
+  "responseOverrides": {
+    "401": {
+      "statusCode": 401,
+      "rewrite": "/index.html"
+    },
+    "404": {
+      "rewrite": "/index.html"
+    }
+  },
+  "globalHeaders": {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "ALLOW-FROM teams.microsoft.com",
+    "X-XSS-Protection": "1; mode=block",
+    "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://login.microsoftonline.com https://res.cdn.office.net https://statics.teams.cdn.office.net; style-src 'self' 'unsafe-inline'; connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com https://*.sharepoint.com wss://*.microsoft.com; img-src 'self' data: https: blob:; frame-src https://login.microsoftonline.com https://teams.microsoft.com; frame-ancestors https://teams.microsoft.com https://*.teams.microsoft.com;",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(self), microphone=()",
+    "Cache-Control": "no-cache"
+  },
+  "mimeTypes": {
+    ".json": "application/json",
+    ".woff2": "font/woff2",
+    ".woff": "font/woff"
+  },
+  "platform": {
+    "apiRuntime": "node:18"
+  }
+}

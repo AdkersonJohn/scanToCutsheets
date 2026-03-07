@@ -6,6 +6,7 @@ import { HomeScreen } from '@/components/HomeScreen';
 import { ScanningScreen } from '@/components/ScanningScreen';
 import { ReviewScreen } from '@/components/ReviewScreen';
 import { SubmissionScreen } from '@/components/SubmissionScreen';
+import { OfflineBanner } from '@/components/OfflineBanner';
 
 const useStyles = makeStyles({
   container: {
@@ -83,7 +84,12 @@ function App() {
     }
   };
 
-  return <div className={styles.container}>{renderScreen()}</div>;
+  return (
+    <div className={styles.container}>
+      <OfflineBanner />
+      {renderScreen()}
+    </div>
+  );
 }
 
 export default App;
