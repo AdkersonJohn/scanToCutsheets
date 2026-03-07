@@ -14,6 +14,8 @@ import {
   Home24Regular,
   CheckmarkCircle48Regular,
   ErrorCircle48Regular,
+  WifiOff24Regular,
+  ArrowClockwise24Regular,
 } from '@fluentui/react-icons';
 import { useScanStore } from '@/store/scanStore';
 import { triggerHapticFeedback } from '@/services/scannerService';
@@ -23,6 +25,7 @@ import {
   getConfiguredListId,
   isSharePointConfigured,
 } from '@/services/sharePointService';
+import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 
 const useStyles = makeStyles({
   container: {
@@ -184,6 +187,14 @@ const useStyles = makeStyles({
     justifyContent: 'center',
     padding: tokens.spacingVerticalL,
   },
+  offlineIcon: {
+    fontSize: '64px',
+    color: tokens.colorStatusWarningForeground1,
+    marginBottom: tokens.spacingVerticalM,
+  },
+  retryButton: {
+    marginTop: tokens.spacingVerticalM,
+  },
 });
 
 export function SubmissionScreen() {
@@ -199,12 +210,22 @@ export function SubmissionScreen() {
     setScreen,
   } = useScanStore();
 
+  const { isOnline } = useOnlineStatus();
   const [isComplete, setIsComplete] = useState(false);
+  const [isOfflineBlocked, setIsOfflineBlocked] = useState(false);
+  const [retryCount, setRetryCount] = useState(0);
 
   useEffect(() => {
     const submitRecords = async () => {
       if (!session || isComplete) return;
 
+      // Check if we're offline
+      if (!navigator.onLine) {
+        setIsOfflineBlocked(true);
+        return;
+      }
+
+      setIsOfflineBlocked(false);
       setSubmitting(true);
       const records = session.records.filter((r) => r.status === 'pending');
 
@@ -229,20 +250,35 @@ export function SubmissionScreen() {
         }
       } else {
         // Real SharePoint submission
-        await submitCutSheets(
-          siteId,
-          listId,
-          records,
-          session.userName,
-          (progress) => {
-            if (progress.success) {
-              markRecordSubmitted(progress.recordId);
-            } else {
-              markRecordFailed(progress.recordId, progress.error || 'Unknown error');
+        try {
+          await submitCutSheets(
+            siteId,
+            listId,
+            records,
+            session.userName,
+            (progress) => {
+              if (progress.success) {
+                markRecordSubmitted(progress.recordId);
+              } else {
+                markRecordFailed(progress.recordId, progress.error || 'Unknown error');
+              }
+              setSubmissionProgress((progress.completed / progress.total) * 100);
             }
-            setSubmissionProgress((progress.completed / progress.total) * 100);
+          );
+        } catch (error) {
+          // Handle network errors
+          if (!navigator.onLine) {
+            setIsOfflineBlocked(true);
+            setSubmitting(false);
+            return;
           }
-        );
+          // Mark remaining pending records as failed
+          records.forEach((record) => {
+            if (record.status === 'pending') {
+              markRecordFailed(record.id, error instanceof Error ? error.message : 'Network error');
+            }
+          });
+        }
       }
 
       setSubmitting(false);
@@ -254,11 +290,19 @@ export function SubmissionScreen() {
   }, [
     session,
     isComplete,
+    retryCount,
     setSubmitting,
     setSubmissionProgress,
     markRecordSubmitted,
     markRecordFailed,
   ]);
+
+  const handleRetry = () => {
+    if (navigator.onLine) {
+      setIsOfflineBlocked(false);
+      setRetryCount((c) => c + 1);
+    }
+  };
 
   const handleGoHome = () => {
     clearSession();
@@ -275,12 +319,33 @@ export function SubmissionScreen() {
       {/* Header */}
       <div className={styles.header}>
         <Text className={styles.headerTitle}>
-          {isComplete ? 'Complete' : 'Submitting...'}
+          {isOfflineBlocked ? 'Offline' : isComplete ? 'Complete' : 'Submitting...'}
         </Text>
       </div>
 
+      {/* Offline Blocked State */}
+      {isOfflineBlocked && (
+        <div className={styles.completionCard}>
+          <WifiOff24Regular className={styles.offlineIcon} />
+          <Text className={styles.completionTitle}>You're Offline</Text>
+          <Text className={styles.completionSubtitle}>
+            Your scanned items are saved locally. Connect to the internet to submit them to SharePoint.
+          </Text>
+          {isOnline && (
+            <Button
+              className={styles.retryButton}
+              appearance="primary"
+              icon={<ArrowClockwise24Regular />}
+              onClick={handleRetry}
+            >
+              Retry Submission
+            </Button>
+          )}
+        </div>
+      )}
+
       {/* Progress Section (while submitting) */}
-      {!isComplete && (
+      {!isComplete && !isOfflineBlocked && (
         <div className={styles.progressSection}>
           <Text className={styles.progressTitle}>
             Creating cut sheets...
@@ -296,7 +361,7 @@ export function SubmissionScreen() {
       )}
 
       {/* Completion Card */}
-      {isComplete && (
+      {isComplete && !isOfflineBlocked && (
         <div className={styles.completionCard}>
           {allSuccess ? (
             <CheckmarkCircle48Regular className={styles.successIcon} />
@@ -376,6 +441,19 @@ export function SubmissionScreen() {
             onClick={handleGoHome}
           >
             Done
+          </Button>
+        </div>
+      )}
+
+      {/* Footer when offline - allow going back to review */}
+      {isOfflineBlocked && (
+        <div className={styles.footer}>
+          <Button
+            className={styles.homeButton}
+            appearance="secondary"
+            onClick={() => setScreen('review')}
+          >
+            Back to Review
           </Button>
         </div>
       )}
