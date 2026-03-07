@@ -339,14 +339,9 @@ jobs:
           app_location: "dist"
           output_location: ""
           skip_app_build: true
-          # API location (Azure Functions)
-          api_location: "api"
-          skip_api_build: true
-        env:
-          # These are used at runtime by Azure Functions
-          AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-          AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+          # API deployment temporarily disabled - frontend only for now
+          # api_location: "api"
+          # skip_api_build: true
 
       - name: Output deployment URL
         run: |
