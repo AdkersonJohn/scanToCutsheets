@@ -10,6 +10,10 @@
         "DEFAULT_AVD": "Pixel_7_API_34",
         "SCREENSHOT_DIR": "/tmp/android-screenshots"
       }
+    },
+    "activity-monitor": {
+      "command": "node",
+      "args": ["/Volumes/bingobango/code/scanToCutsheets/mcp-servers/activity-monitor/index.js"]
     }
   }
 }
