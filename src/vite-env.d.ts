@@ -3,9 +3,11 @@
 interface ImportMetaEnv {
   readonly VITE_AZURE_CLIENT_ID: string;
   readonly VITE_AZURE_TENANT_ID: string;
-  readonly VITE_SHAREPOINT_SITE_ID: string;
-  readonly VITE_SHAREPOINT_LIST_ID: string;
+  readonly VITE_AZURE_REDIRECT_URI: string;
+  readonly VITE_TEAMS_APP_ID_URI: string;
   readonly VITE_API_BASE_URL: string;
+  readonly VITE_SHAREPOINT_SITE_ID?: string;
+  readonly VITE_SHAREPOINT_LIST_ID?: string;
 }
 
 interface ImportMeta {
