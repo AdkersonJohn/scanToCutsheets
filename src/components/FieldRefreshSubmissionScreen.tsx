@@ -19,10 +19,12 @@ import {
 import { useScanStore } from '@/store/scanStore';
 import { triggerHapticFeedback } from '@/services/scannerService';
 import {
-  submitCutSheets,
+  submitFieldRefreshRecords,
   getConfiguredSiteId,
-  getConfiguredListId,
-  isSharePointConfigured,
+  getFieldRefreshTodoDriveId,
+  getFieldRefreshTodoFileId,
+  getFieldRefreshTodoTableName,
+  isFieldRefreshTodoConfigured,
 } from '@/services/sharePointService';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import {
@@ -180,6 +182,10 @@ const useStyles = makeStyles({
     fontWeight: encoreTypography.fontWeight.medium,
     color: encoreColors.charcoal,
   },
+  itemSubtext: {
+    fontSize: '12px',
+    color: encoreColors.bodyGray,
+  },
   itemError: {
     fontSize: '13px',
     color: encoreColors.error,
@@ -221,12 +227,6 @@ const useStyles = makeStyles({
     border: `1px solid ${encoreColors.borderGray}`,
     color: encoreColors.charcoal,
   },
-  spinnerContainer: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: '24px',
-  },
   offlineIcon: {
     fontSize: '64px',
     color: encoreColors.warning,
@@ -241,16 +241,16 @@ const useStyles = makeStyles({
   },
 });
 
-export function SubmissionScreen() {
+export function FieldRefreshSubmissionScreen() {
   const styles = useStyles();
   const {
-    session,
+    fieldRefreshSession,
     submissionProgress,
     setSubmitting,
     setSubmissionProgress,
-    markRecordSubmitted,
-    markRecordFailed,
-    clearSession,
+    markFieldRefreshRecordSubmitted,
+    markFieldRefreshRecordFailed,
+    clearFieldRefreshSession,
     setScreen,
   } = useScanStore();
 
@@ -261,7 +261,7 @@ export function SubmissionScreen() {
 
   useEffect(() => {
     const submitRecords = async () => {
-      if (!session || isComplete) return;
+      if (!fieldRefreshSession || isComplete) return;
 
       // Check if we're offline
       if (!navigator.onLine) {
@@ -271,15 +271,17 @@ export function SubmissionScreen() {
 
       setIsOfflineBlocked(false);
       setSubmitting(true);
-      const records = session.records.filter((r) => r.status === 'pending');
+      const records = fieldRefreshSession.records.filter((r) => r.status === 'pending');
 
-      // Check if SharePoint is configured
+      // Check if Field Refresh TODO list is configured
       const siteId = getConfiguredSiteId();
-      const listId = getConfiguredListId();
+      const driveId = getFieldRefreshTodoDriveId();
+      const fileId = getFieldRefreshTodoFileId();
+      const tableName = getFieldRefreshTodoTableName();
 
-      if (!isSharePointConfigured() || !siteId || !listId) {
-        // Demo mode: simulate submission when SharePoint is not configured
-        console.warn('SharePoint not configured. Running in demo mode.');
+      if (!isFieldRefreshTodoConfigured() || !siteId || !driveId || !fileId || !tableName) {
+        // Demo mode: simulate submission when not configured
+        console.warn('Field Refresh TODO list not configured. Running in demo mode.');
 
         for (let i = 0; i < records.length; i++) {
           const record = records[i];
@@ -288,23 +290,25 @@ export function SubmissionScreen() {
           await new Promise((resolve) => setTimeout(resolve, 300));
 
           // Demo mode: 100% success rate
-          console.log(`[DEMO] Would create cut sheet for: ${record.assetTag} / ${record.serialNumber}`);
-          markRecordSubmitted(record.id);
+          console.log(`[DEMO] Would add to Excel: ${record.assetTag} / ${record.serialNumber} / ${record.department}`);
+          markFieldRefreshRecordSubmitted(record.id);
           setSubmissionProgress(((i + 1) / records.length) * 100);
         }
       } else {
-        // Real SharePoint submission
+        // Real Excel submission
         try {
-          await submitCutSheets(
+          await submitFieldRefreshRecords(
             siteId,
-            listId,
+            driveId,
+            fileId,
+            tableName,
             records,
-            session.userName,
+            fieldRefreshSession.userName,
             (progress) => {
               if (progress.success) {
-                markRecordSubmitted(progress.recordId);
+                markFieldRefreshRecordSubmitted(progress.recordId);
               } else {
-                markRecordFailed(progress.recordId, progress.error || 'Unknown error');
+                markFieldRefreshRecordFailed(progress.recordId, progress.error || 'Unknown error');
               }
               setSubmissionProgress((progress.completed / progress.total) * 100);
             }
@@ -319,7 +323,7 @@ export function SubmissionScreen() {
           // Mark remaining pending records as failed
           records.forEach((record) => {
             if (record.status === 'pending') {
-              markRecordFailed(record.id, error instanceof Error ? error.message : 'Network error');
+              markFieldRefreshRecordFailed(record.id, error instanceof Error ? error.message : 'Network error');
             }
           });
         }
@@ -332,13 +336,13 @@ export function SubmissionScreen() {
 
     submitRecords();
   }, [
-    session,
+    fieldRefreshSession,
     isComplete,
     retryCount,
     setSubmitting,
     setSubmissionProgress,
-    markRecordSubmitted,
-    markRecordFailed,
+    markFieldRefreshRecordSubmitted,
+    markFieldRefreshRecordFailed,
   ]);
 
   const handleRetry = () => {
@@ -349,11 +353,11 @@ export function SubmissionScreen() {
   };
 
   const handleGoHome = () => {
-    clearSession();
+    clearFieldRefreshSession();
     setScreen('home');
   };
 
-  const records = session?.records ?? [];
+  const records = fieldRefreshSession?.records ?? [];
   const successCount = records.filter((r) => r.status === 'submitted').length;
   const failedCount = records.filter((r) => r.status === 'failed').length;
   const allSuccess = failedCount === 0;
@@ -373,7 +377,7 @@ export function SubmissionScreen() {
           <WifiOff24Regular className={styles.offlineIcon} />
           <Text className={styles.completionTitle}>You're Offline</Text>
           <Text className={styles.completionSubtitle}>
-            Your scanned items are saved locally. Connect to the internet to submit them to SharePoint.
+            Your scanned items are saved locally. Connect to the internet to submit them to the TODO list.
           </Text>
           {isOnline && (
             <Button
@@ -392,7 +396,7 @@ export function SubmissionScreen() {
       {!isComplete && !isOfflineBlocked && (
         <div className={styles.progressSection}>
           <Text className={styles.progressTitle}>
-            Creating cut sheets...
+            Adding to TODO list...
           </Text>
           <div className={styles.progressBarContainer}>
             <ProgressBar value={submissionProgress / 100} thickness="large" />
@@ -417,12 +421,12 @@ export function SubmissionScreen() {
           </Text>
           <Text className={styles.completionSubtitle}>
             {allSuccess
-              ? `${successCount} cut sheets created successfully`
+              ? `${successCount} machines added to TODO list`
               : `${successCount} succeeded, ${failedCount} failed`}
           </Text>
           <div className={styles.statsRow}>
             <span className={styles.successBadge}>
-              {successCount} Created
+              {successCount} Added
             </span>
             {failedCount > 0 && (
               <span className={styles.failedBadge}>
@@ -435,7 +439,7 @@ export function SubmissionScreen() {
 
       {/* Items List */}
       <div className={styles.content}>
-        <Text className={styles.listHeader}>Items</Text>
+        <Text className={styles.listHeader}>Machines</Text>
         <div className={styles.listContainer}>
           {records.map((record) => (
             <div key={record.id} className={styles.listItem}>
@@ -452,6 +456,9 @@ export function SubmissionScreen() {
               </div>
               <div className={styles.itemContent}>
                 <Text className={styles.itemText}>{record.assetTag}</Text>
+                <Text className={styles.itemSubtext}>
+                  {record.serialNumber} - {record.department}
+                </Text>
                 {record.errorMessage && (
                   <Text className={styles.itemError}>{record.errorMessage}</Text>
                 )}
@@ -495,7 +502,7 @@ export function SubmissionScreen() {
           <Button
             className={styles.homeButtonSecondary}
             appearance="secondary"
-            onClick={() => setScreen('review')}
+            onClick={() => setScreen('fieldRefreshReview')}
           >
             Back to Review
           </Button>
