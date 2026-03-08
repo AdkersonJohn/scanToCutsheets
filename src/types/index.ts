@@ -2,6 +2,12 @@ export type ScanStatus = 'pending' | 'submitted' | 'failed';
 
 export type ScanMode = 'assetTag' | 'serialNumber';
 
+// App mode for three-mode expansion
+export type AppMode = 'createCutSheets' | 'fieldRefreshCheck' | 'finishCutSheets';
+
+// Eligibility status for field refresh check
+export type EligibilityStatus = 'eligible' | 'not_eligible' | 'already_exists' | 'pending';
+
 export interface ScanRecord {
   id: string;
   assetTag: string;
@@ -9,6 +15,32 @@ export interface ScanRecord {
   scannedAt: Date;
   status: ScanStatus;
   errorMessage?: string;
+}
+
+// Field Refresh Record for the Field Refresh Check mode
+export interface FieldRefreshRecord {
+  id: string;
+  assetTag: string;
+  serialNumber: string;
+  department: string;
+  locationNotes: string;
+  machineType: 'desktop' | 'laptop' | 'other';
+  monitorAssetTag?: string;
+  monitorSerial?: string;
+  scannedAt: Date;
+  status: 'pending' | 'submitted' | 'failed';
+  eligibilityStatus: EligibilityStatus;
+  errorMessage?: string;
+}
+
+// Field Refresh Session
+export interface FieldRefreshSession {
+  id: string;
+  userId: string;
+  userName: string;
+  startedAt: Date;
+  endedAt: Date | null;
+  records: FieldRefreshRecord[];
 }
 
 // Validation patterns
@@ -41,7 +73,35 @@ export interface ScanningSession {
   records: ScanRecord[];
 }
 
-export type AppScreen = 'home' | 'scanning' | 'review' | 'submission';
+// Extended screens for three-mode app
+export type AppScreen =
+  | 'home'
+  | 'scanning'
+  | 'review'
+  | 'submission'
+  | 'fieldRefreshScan'
+  | 'fieldRefreshReview'
+  | 'fieldRefreshSubmission';
+
+// Year eligibility helpers for Field Refresh Check
+export function extractYearFromAssetTag(assetTag: string): number | null {
+  const match = assetTag.match(/^EW(\d{2})-\d{5}$/);
+  if (!match) return null;
+  return 2000 + parseInt(match[1], 10);
+}
+
+export interface EligibilityResult {
+  eligible: boolean;
+  year: number | null;
+  eligibleAfterYear?: number;
+}
+
+export function isEligibleForRefresh(assetTag: string): EligibilityResult {
+  const year = extractYearFromAssetTag(assetTag);
+  if (!year) return { eligible: false, year: null };
+  const eligible = year <= 2022;
+  return { eligible, year, eligibleAfterYear: eligible ? undefined : year + 4 };
+}
 
 export interface SubmissionResult {
   recordId: string;

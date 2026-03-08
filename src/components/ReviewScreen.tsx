@@ -2,7 +2,6 @@ import { useState } from 'react';
 import {
   makeStyles,
   mergeClasses,
-  tokens,
   Button,
   Text,
   Input,
@@ -12,7 +11,6 @@ import {
   DialogBody,
   DialogActions,
   DialogContent,
-  Badge,
   Label,
 } from '@fluentui/react-components';
 import {
@@ -26,22 +24,28 @@ import {
 } from '@fluentui/react-icons';
 import { useScanStore } from '@/store/scanStore';
 import { validateAssetTag, validateSerialNumber, formatAssetTag } from '@/types';
+import {
+  encoreColors,
+  encoreTypography,
+  encoreBorderRadius,
+  encoreShadows,
+} from '@/theme';
 
 const useStyles = makeStyles({
   container: {
     display: 'flex',
     flexDirection: 'column',
     height: '100vh',
-    backgroundColor: tokens.colorNeutralBackground2,
+    backgroundColor: '#FAFAFA',
+    fontFamily: encoreTypography.fontFamily.body,
   },
   header: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: tokens.spacingHorizontalM,
-    paddingTop: 'max(env(safe-area-inset-top), 12px)',
-    backgroundColor: tokens.colorNeutralBackground1,
-    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
+    padding: '16px 20px',
+    paddingTop: 'max(env(safe-area-inset-top), 16px)',
+    background: encoreColors.primaryGradient,
     position: 'sticky',
     top: 0,
     zIndex: 10,
@@ -49,66 +53,84 @@ const useStyles = makeStyles({
   headerLeft: {
     display: 'flex',
     alignItems: 'center',
-    gap: tokens.spacingHorizontalS,
+    gap: '12px',
   },
   backButton: {
     minWidth: '44px',
     height: '44px',
     padding: 0,
+    color: encoreColors.white,
+    ':hover': {
+      backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    },
   },
   headerTitle: {
     fontSize: '20px',
-    fontWeight: 600,
-    color: tokens.colorNeutralForeground1,
+    fontWeight: encoreTypography.fontWeight.semibold,
+    fontFamily: encoreTypography.fontFamily.heading,
+    color: encoreColors.white,
   },
   headerBadge: {
-    marginLeft: tokens.spacingHorizontalS,
+    marginLeft: '8px',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    color: encoreColors.white,
+    padding: '4px 12px',
+    borderRadius: encoreBorderRadius.full,
+    fontSize: '14px',
+    fontWeight: encoreTypography.fontWeight.medium,
   },
   content: {
     flex: 1,
     overflowY: 'auto',
-    padding: tokens.spacingHorizontalM,
+    padding: '16px',
     paddingBottom: '140px',
   },
   addButton: {
     width: '100%',
     height: '52px',
-    marginBottom: tokens.spacingVerticalM,
+    marginBottom: '16px',
     fontSize: '15px',
-    fontWeight: 500,
-    backgroundColor: tokens.colorNeutralBackground1,
-    border: `2px dashed ${tokens.colorNeutralStroke1}`,
-    borderRadius: tokens.borderRadiusMedium,
+    fontWeight: encoreTypography.fontWeight.medium,
+    fontFamily: encoreTypography.fontFamily.body,
+    backgroundColor: encoreColors.white,
+    border: `2px dashed ${encoreColors.borderGray}`,
+    borderRadius: encoreBorderRadius.lg,
     justifyContent: 'center',
+    color: encoreColors.bodyGray,
+    transition: 'all 200ms ease',
+    ':hover': {
+      border: `2px dashed ${encoreColors.primaryBlue}`,
+      color: encoreColors.primaryBlue,
+    },
   },
   listContainer: {
-    backgroundColor: tokens.colorNeutralBackground1,
-    borderRadius: tokens.borderRadiusLarge,
+    backgroundColor: encoreColors.white,
+    borderRadius: encoreBorderRadius.lg,
     overflow: 'hidden',
-    boxShadow: tokens.shadow4,
+    boxShadow: encoreShadows.card,
   },
   listItem: {
     display: 'flex',
     alignItems: 'center',
     minHeight: '72px',
-    padding: `${tokens.spacingVerticalM} ${tokens.spacingHorizontalM}`,
-    borderBottom: `1px solid ${tokens.colorNeutralStroke2}`,
-    gap: tokens.spacingHorizontalM,
+    padding: '16px',
+    borderBottom: `1px solid ${encoreColors.borderGray}`,
+    gap: '16px',
     ':last-child': {
       borderBottom: 'none',
     },
   },
   itemNumber: {
-    width: '28px',
-    height: '28px',
+    width: '32px',
+    height: '32px',
     borderRadius: '50%',
-    backgroundColor: tokens.colorBrandBackground2,
-    color: tokens.colorBrandForeground1,
+    background: encoreColors.primaryGradient,
+    color: encoreColors.white,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: '13px',
-    fontWeight: 600,
+    fontSize: '14px',
+    fontWeight: encoreTypography.fontWeight.semibold,
     flexShrink: 0,
   },
   itemContent: {
@@ -116,108 +138,140 @@ const useStyles = makeStyles({
     minWidth: 0,
     display: 'flex',
     flexDirection: 'column',
-    gap: '2px',
+    gap: '4px',
   },
   itemAssetTag: {
     fontSize: '16px',
-    fontWeight: 600,
-    color: tokens.colorNeutralForeground1,
+    fontWeight: encoreTypography.fontWeight.semibold,
+    fontFamily: encoreTypography.fontFamily.body,
+    color: encoreColors.charcoal,
   },
   itemSerialNumber: {
     fontSize: '14px',
-    color: tokens.colorNeutralForeground3,
+    color: encoreColors.bodyGray,
   },
   itemActions: {
     display: 'flex',
-    gap: tokens.spacingHorizontalXS,
+    gap: '4px',
     flexShrink: 0,
   },
   actionButton: {
     minWidth: '44px',
     height: '44px',
     padding: 0,
+    borderRadius: encoreBorderRadius.md,
   },
   editButton: {
-    color: tokens.colorBrandForeground1,
+    color: encoreColors.primaryBlue,
   },
   deleteButton: {
-    color: tokens.colorStatusDangerForeground1,
+    color: encoreColors.error,
   },
   emptyState: {
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: tokens.spacingVerticalXXL,
+    padding: '48px',
     textAlign: 'center',
-    gap: tokens.spacingVerticalM,
+    gap: '16px',
   },
   emptyIcon: {
     fontSize: '48px',
-    color: tokens.colorNeutralForeground3,
+    color: encoreColors.bodyGray,
   },
   emptyTitle: {
     fontSize: '18px',
-    fontWeight: 600,
-    color: tokens.colorNeutralForeground2,
+    fontWeight: encoreTypography.fontWeight.semibold,
+    fontFamily: encoreTypography.fontFamily.heading,
+    color: encoreColors.charcoal,
   },
   emptyDescription: {
     fontSize: '14px',
-    color: tokens.colorNeutralForeground3,
+    color: encoreColors.bodyGray,
     maxWidth: '260px',
+    lineHeight: 1.5,
   },
   footer: {
     position: 'fixed',
     bottom: 0,
     left: 0,
     right: 0,
-    padding: tokens.spacingHorizontalM,
+    padding: '16px',
     paddingBottom: 'max(env(safe-area-inset-bottom), 16px)',
-    backgroundColor: tokens.colorNeutralBackground1,
-    borderTop: `1px solid ${tokens.colorNeutralStroke2}`,
+    backgroundColor: encoreColors.white,
+    borderTop: `1px solid ${encoreColors.borderGray}`,
     display: 'flex',
     flexDirection: 'column',
-    gap: tokens.spacingVerticalS,
+    gap: '12px',
+    boxShadow: '0 -4px 20px rgba(0, 0, 0, 0.08)',
   },
   footerButtons: {
     display: 'flex',
-    gap: tokens.spacingHorizontalM,
+    gap: '12px',
   },
   scanMoreButton: {
     flex: 1,
     height: '52px',
     fontSize: '15px',
-    fontWeight: 500,
+    fontWeight: encoreTypography.fontWeight.medium,
+    fontFamily: encoreTypography.fontFamily.body,
+    borderRadius: encoreBorderRadius.full,
+    backgroundColor: encoreColors.white,
+    border: `1px solid ${encoreColors.borderGray}`,
+    color: encoreColors.charcoal,
+    ':hover': {
+      border: `1px solid ${encoreColors.primaryBlue}`,
+      color: encoreColors.primaryBlue,
+    },
   },
   approveButton: {
     flex: 2,
     height: '52px',
     fontSize: '16px',
-    fontWeight: 600,
+    fontWeight: encoreTypography.fontWeight.semibold,
+    fontFamily: encoreTypography.fontFamily.body,
+    borderRadius: encoreBorderRadius.full,
+    background: encoreColors.primaryGradient,
+    border: 'none',
+    boxShadow: '0 4px 14px rgba(0, 137, 209, 0.3)',
   },
   dialogInputGroup: {
     display: 'flex',
     flexDirection: 'column',
-    gap: tokens.spacingVerticalS,
-    marginTop: tokens.spacingVerticalM,
+    gap: '8px',
+    marginTop: '16px',
   },
   dialogLabel: {
-    fontWeight: 500,
+    fontWeight: encoreTypography.fontWeight.medium,
+    fontFamily: encoreTypography.fontFamily.body,
+    color: encoreColors.charcoal,
   },
   dialogInput: {
     width: '100%',
+    borderRadius: encoreBorderRadius.md,
   },
   dialogError: {
-    color: tokens.colorStatusDangerForeground1,
+    color: encoreColors.error,
     fontSize: '12px',
-    marginTop: tokens.spacingVerticalXS,
+    marginTop: '4px',
   },
   dialogActions: {
-    paddingTop: tokens.spacingVerticalL,
+    paddingTop: '24px',
   },
   dialogButton: {
     minWidth: '100px',
     height: '44px',
+    borderRadius: encoreBorderRadius.full,
+    fontWeight: encoreTypography.fontWeight.medium,
+  },
+  dialogButtonPrimary: {
+    minWidth: '100px',
+    height: '44px',
+    borderRadius: encoreBorderRadius.full,
+    fontWeight: encoreTypography.fontWeight.medium,
+    background: encoreColors.primaryGradient,
+    border: 'none',
   },
 });
 
@@ -370,9 +424,7 @@ export function ReviewScreen() {
           />
           <Text className={styles.headerTitle}>Review</Text>
           {records.length > 0 && (
-            <Badge appearance="filled" color="brand" className={styles.headerBadge}>
-              {records.length}
-            </Badge>
+            <span className={styles.headerBadge}>{records.length}</span>
           )}
         </div>
       </div>
@@ -533,7 +585,7 @@ export function ReviewScreen() {
                 Cancel
               </Button>
               <Button
-                className={styles.dialogButton}
+                className={styles.dialogButtonPrimary}
                 appearance="primary"
                 onClick={handleAddEntry}
                 disabled={!newAssetTag.trim() || !newSerialNumber.trim()}
@@ -567,7 +619,7 @@ export function ReviewScreen() {
                 Cancel
               </Button>
               <Button
-                className={styles.dialogButton}
+                className={styles.dialogButtonPrimary}
                 appearance="primary"
                 onClick={handleConfirmSubmit}
               >

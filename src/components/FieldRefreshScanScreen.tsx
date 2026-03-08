@@ -9,9 +9,7 @@ import {
   Checkmark24Regular,
   Dismiss24Regular,
   Camera24Regular,
-  ArrowUndo24Regular,
   Tag24Regular,
-  DocumentText24Regular,
 } from '@fluentui/react-icons';
 import { useScanStore } from '@/store/scanStore';
 import {
@@ -21,6 +19,15 @@ import {
   stopQuaggaScanner,
   type ScannerType,
 } from '@/services/scannerService';
+import {
+  checkExistingCutSheet,
+  getConfiguredSiteId,
+  getConfiguredListId,
+} from '@/services/sharePointService';
+import { validateAssetTag, formatAssetTag, isEligibleForRefresh } from '@/types';
+import type { EligibilityStatus, FieldRefreshRecord } from '@/types';
+import { EligibilityBadge } from '@/components/EligibilityBadge';
+import { FieldRefreshFormDialog } from '@/components/FieldRefreshFormDialog';
 import {
   encoreColors,
   encoreTypography,
@@ -110,23 +117,78 @@ const useStyles = makeStyles({
     borderRadius: encoreBorderRadius.full,
     padding: '6px 14px',
     fontWeight: encoreTypography.fontWeight.medium,
+    fontSize: '14px',
   },
-  lastScannedBanner: {
+  scanModeIndicator: {
     position: 'absolute',
-    top: '100px',
+    top: '50%',
     left: '50%',
-    transform: 'translateX(-50%)',
-    backgroundColor: encoreColors.success,
+    transform: 'translate(-50%, -150%)',
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    backdropFilter: 'blur(8px)',
     color: encoreColors.white,
-    padding: '10px 20px',
-    borderRadius: encoreBorderRadius.full,
+    padding: '20px 28px',
+    borderRadius: encoreBorderRadius.xl,
     display: 'flex',
+    flexDirection: 'column',
     alignItems: 'center',
     gap: '8px',
     zIndex: 10,
-    boxShadow: encoreShadows.lg,
-    animation: 'fadeInOut 2s ease-in-out',
+    minWidth: '200px',
+    textAlign: 'center',
+    border: '1px solid rgba(255, 255, 255, 0.1)',
+  },
+  scanModeLabel: {
+    fontSize: '14px',
+    opacity: 0.7,
+    fontFamily: encoreTypography.fontFamily.body,
+  },
+  scanModeValue: {
+    fontSize: '20px',
+    fontWeight: encoreTypography.fontWeight.bold,
+    fontFamily: encoreTypography.fontFamily.heading,
+  },
+  eligibilityResult: {
+    position: 'absolute',
+    top: '55%',
+    left: '50%',
+    transform: 'translate(-50%, 0)',
+    backgroundColor: 'rgba(0, 0, 0, 0.95)',
+    backdropFilter: 'blur(12px)',
+    padding: '24px',
+    borderRadius: encoreBorderRadius.xl,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '16px',
+    zIndex: 15,
+    minWidth: '300px',
+    textAlign: 'center',
+    border: '1px solid rgba(255, 255, 255, 0.1)',
+    boxShadow: encoreShadows.xl,
+  },
+  eligibilityAssetTag: {
+    color: encoreColors.white,
+    fontSize: '22px',
+    fontWeight: encoreTypography.fontWeight.bold,
+    fontFamily: encoreTypography.fontFamily.heading,
+  },
+  eligibilityActions: {
+    display: 'flex',
+    gap: '12px',
+    marginTop: '8px',
+  },
+  actionButton: {
+    borderRadius: encoreBorderRadius.full,
     fontWeight: encoreTypography.fontWeight.medium,
+    fontFamily: encoreTypography.fontFamily.body,
+  },
+  primaryActionButton: {
+    borderRadius: encoreBorderRadius.full,
+    fontWeight: encoreTypography.fontWeight.medium,
+    fontFamily: encoreTypography.fontFamily.body,
+    background: encoreColors.primaryGradient,
+    border: 'none',
   },
   bottomPanel: {
     backgroundColor: encoreColors.white,
@@ -172,6 +234,19 @@ const useStyles = makeStyles({
     alignItems: 'center',
     gap: '12px',
   },
+  scannedItemDetails: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px',
+  },
+  scannedItemAsset: {
+    fontWeight: encoreTypography.fontWeight.semibold,
+    color: encoreColors.charcoal,
+  },
+  scannedItemSerial: {
+    fontSize: '12px',
+    color: encoreColors.bodyGray,
+  },
   itemIcon: {
     color: encoreColors.success,
   },
@@ -194,10 +269,6 @@ const useStyles = makeStyles({
     background: encoreColors.primaryGradient,
     border: 'none',
     boxShadow: '0 4px 14px rgba(0, 137, 209, 0.3)',
-    ':hover': {
-      transform: 'translateY(-1px)',
-      boxShadow: '0 6px 20px rgba(0, 137, 209, 0.4)',
-    },
   },
   doneButton: {
     flex: 1,
@@ -209,10 +280,6 @@ const useStyles = makeStyles({
     backgroundColor: encoreColors.white,
     border: `1px solid ${encoreColors.borderGray}`,
     color: encoreColors.charcoal,
-    ':hover': {
-      border: `1px solid ${encoreColors.primaryBlue}`,
-      color: encoreColors.primaryBlue,
-    },
   },
   doneButtonPrimary: {
     flex: 1,
@@ -256,70 +323,6 @@ const useStyles = makeStyles({
     zIndex: 10,
     boxShadow: encoreShadows.lg,
   },
-  scanModeIndicator: {
-    position: 'absolute',
-    top: '50%',
-    left: '50%',
-    transform: 'translate(-50%, -150%)',
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
-    backdropFilter: 'blur(8px)',
-    color: encoreColors.white,
-    padding: '20px 28px',
-    borderRadius: encoreBorderRadius.xl,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    gap: '8px',
-    zIndex: 10,
-    minWidth: '200px',
-    textAlign: 'center',
-    border: `1px solid rgba(255, 255, 255, 0.1)`,
-  },
-  scanModeLabel: {
-    fontSize: '14px',
-    opacity: 0.7,
-    fontFamily: encoreTypography.fontFamily.body,
-  },
-  scanModeValue: {
-    fontSize: '20px',
-    fontWeight: encoreTypography.fontWeight.bold,
-    fontFamily: encoreTypography.fontFamily.heading,
-  },
-  pendingAssetTagBanner: {
-    position: 'absolute',
-    top: '100px',
-    left: '50%',
-    transform: 'translateX(-50%)',
-    backgroundColor: encoreColors.warning,
-    color: encoreColors.charcoal,
-    padding: '10px 20px',
-    borderRadius: encoreBorderRadius.full,
-    display: 'flex',
-    alignItems: 'center',
-    gap: '10px',
-    zIndex: 10,
-    boxShadow: encoreShadows.lg,
-    fontWeight: encoreTypography.fontWeight.medium,
-  },
-  cancelButton: {
-    minWidth: 'auto',
-    padding: '4px',
-    color: encoreColors.charcoal,
-  },
-  scannedItemDetails: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '2px',
-  },
-  scannedItemAsset: {
-    fontWeight: encoreTypography.fontWeight.semibold,
-    color: encoreColors.charcoal,
-    fontFamily: encoreTypography.fontFamily.body,
-  },
-  scannedItemSerial: {
-    fontSize: '12px',
-    color: encoreColors.bodyGray,
-  },
 });
 
 const cssAnimation = `
@@ -327,24 +330,31 @@ const cssAnimation = `
   0%, 100% { top: 10%; }
   50% { top: 90%; }
 }
-@keyframes fadeInOut {
-  0% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
-  15% { opacity: 1; transform: translateX(-50%) translateY(0); }
-  85% { opacity: 1; transform: translateX(-50%) translateY(0); }
-  100% { opacity: 0; transform: translateX(-50%) translateY(-10px); }
-}
 `;
 
-export function ScanningScreen() {
+interface ScannedAssetState {
+  assetTag: string;
+  eligibilityStatus: EligibilityStatus;
+  eligibleAfterYear?: number;
+  isChecking: boolean;
+}
+
+export function FieldRefreshScanScreen() {
   const styles = useStyles();
   const scannerRef = useRef<HTMLDivElement>(null);
-  const { session, addScan, endSession, scanMode, pendingAssetTag, cancelPendingAssetTag } = useScanStore();
+  const {
+    fieldRefreshSession,
+    addFieldRefreshRecord,
+    endFieldRefreshSession,
+  } = useScanStore();
 
   const [scannerType, setScannerType] = useState<ScannerType | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [isScanning, setIsScanning] = useState(false);
-  const [lastScanned, setLastScanned] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const [scannedAsset, setScannedAsset] = useState<ScannedAssetState | null>(null);
+  const [showFormDialog, setShowFormDialog] = useState(false);
 
   useEffect(() => {
     const style = document.createElement('style');
@@ -364,24 +374,85 @@ export function ScanningScreen() {
     init();
   }, []);
 
-  const handleScanSuccess = useCallback(
-    (code: string) => {
-      const result = addScan(code);
+  const checkEligibility = useCallback(
+    async (assetTag: string) => {
+      setScannedAsset({
+        assetTag,
+        eligibilityStatus: 'pending',
+        isChecking: true,
+      });
 
-      if (!result.success) {
-        setError(result.error || 'Scan failed');
+      // First check year eligibility
+      const eligibility = isEligibleForRefresh(assetTag);
+
+      if (!eligibility.eligible) {
+        setScannedAsset({
+          assetTag,
+          eligibilityStatus: 'not_eligible',
+          eligibleAfterYear: eligibility.eligibleAfterYear,
+          isChecking: false,
+        });
+        return;
+      }
+
+      // If year is eligible, check SharePoint for existing cut sheet
+      const siteId = getConfiguredSiteId();
+      const listId = getConfiguredListId();
+
+      if (siteId && listId) {
+        try {
+          const result = await checkExistingCutSheet(siteId, listId, assetTag);
+          if (result.exists) {
+            setScannedAsset({
+              assetTag,
+              eligibilityStatus: 'already_exists',
+              isChecking: false,
+            });
+            return;
+          }
+        } catch (err) {
+          console.error('Failed to check SharePoint:', err);
+          // Continue anyway - better to add than to miss
+        }
+      }
+
+      // Eligible and no existing cut sheet
+      setScannedAsset({
+        assetTag,
+        eligibilityStatus: 'eligible',
+        isChecking: false,
+      });
+    },
+    []
+  );
+
+  const handleScanSuccess = useCallback(
+    async (code: string) => {
+      const formattedCode = formatAssetTag(code);
+
+      if (!validateAssetTag(formattedCode)) {
+        setError(`Invalid Asset Tag format: ${code}. Expected: EW##-#####`);
         setTimeout(() => setError(null), 3000);
         return;
       }
 
-      setLastScanned(code);
-      setTimeout(() => setLastScanned(null), 2000);
+      // Check if already scanned in this session
+      const existingRecord = fieldRefreshSession?.records.find(
+        (r) => r.assetTag === formattedCode
+      );
+      if (existingRecord) {
+        setError(`Asset Tag "${formattedCode}" already scanned`);
+        setTimeout(() => setError(null), 3000);
+        return;
+      }
+
+      await checkEligibility(formattedCode);
     },
-    [addScan]
+    [fieldRefreshSession, checkEligibility]
   );
 
   useEffect(() => {
-    if (scannerType !== 'quagga' || !scannerRef.current || isInitializing) return;
+    if (scannerType !== 'quagga' || !scannerRef.current || isInitializing || scannedAsset) return;
 
     initializeQuaggaScanner({
       targetElement: scannerRef.current,
@@ -395,7 +466,7 @@ export function ScanningScreen() {
     return () => {
       stopQuaggaScanner();
     };
-  }, [scannerType, isInitializing, handleScanSuccess]);
+  }, [scannerType, isInitializing, handleScanSuccess, scannedAsset]);
 
   const handleTeamsNativeScan = async () => {
     if (isScanning) return;
@@ -406,7 +477,7 @@ export function ScanningScreen() {
     try {
       const code = await scanWithTeamsNative();
       if (code) {
-        handleScanSuccess(code);
+        await handleScanSuccess(code);
       }
     } catch (err) {
       console.error('Teams scan error:', err);
@@ -419,21 +490,63 @@ export function ScanningScreen() {
     }
   };
 
+  const handleContinueToForm = () => {
+    if (scannedAsset?.eligibilityStatus === 'eligible') {
+      setShowFormDialog(true);
+    }
+  };
+
+  const handleDismissResult = () => {
+    setScannedAsset(null);
+  };
+
+  const handleFormSubmit = (data: {
+    serialNumber: string;
+    department: string;
+    locationNotes: string;
+    machineType: 'desktop' | 'laptop' | 'other';
+    monitorAssetTag?: string;
+    monitorSerial?: string;
+  }) => {
+    if (!scannedAsset) return;
+
+    const record: Omit<FieldRefreshRecord, 'id' | 'scannedAt'> = {
+      assetTag: scannedAsset.assetTag,
+      serialNumber: data.serialNumber,
+      department: data.department,
+      locationNotes: data.locationNotes,
+      machineType: data.machineType,
+      monitorAssetTag: data.monitorAssetTag,
+      monitorSerial: data.monitorSerial,
+      status: 'pending',
+      eligibilityStatus: 'eligible',
+    };
+
+    addFieldRefreshRecord(record);
+    setShowFormDialog(false);
+    setScannedAsset(null);
+  };
+
+  const handleFormCancel = () => {
+    setShowFormDialog(false);
+    setScannedAsset(null);
+  };
+
   const handleEndScanning = () => {
     if (scannerType === 'quagga') {
       stopQuaggaScanner();
     }
-    endSession();
+    endFieldRefreshSession();
   };
 
-  const scannedCount = session?.records.length ?? 0;
-  const recentScans = session?.records.slice(-5).reverse() ?? [];
+  const scannedCount = fieldRefreshSession?.records.length ?? 0;
+  const recentScans = fieldRefreshSession?.records.slice(-5).reverse() ?? [];
 
   return (
     <div className={styles.container}>
       {/* Camera Area */}
       <div className={styles.cameraArea}>
-        {scannerType === 'quagga' && (
+        {scannerType === 'quagga' && !scannedAsset && (
           <>
             <div ref={scannerRef} className={styles.cameraFeed} />
             <div className={styles.scanOverlay}>
@@ -442,7 +555,7 @@ export function ScanningScreen() {
           </>
         )}
 
-        {scannerType === 'teams-native' && (
+        {scannerType === 'teams-native' && !scannedAsset && (
           <div style={{ textAlign: 'center', color: '#fff' }}>
             <Camera24Regular style={{ fontSize: '64px', marginBottom: '16px' }} />
             <Text style={{ color: '#fff', display: 'block' }}>
@@ -452,52 +565,55 @@ export function ScanningScreen() {
         )}
 
         {/* Scan Mode Indicator */}
-        <div className={styles.scanModeIndicator}>
-          {scanMode === 'assetTag' ? (
-            <>
-              <Tag24Regular style={{ fontSize: '32px' }} />
-              <Text className={styles.scanModeLabel}>Scan</Text>
-              <Text className={styles.scanModeValue}>Asset Tag</Text>
-              <Text className={styles.scanModeLabel}>Format: EW##-#####</Text>
-            </>
-          ) : (
-            <>
-              <DocumentText24Regular style={{ fontSize: '32px' }} />
-              <Text className={styles.scanModeLabel}>Scan</Text>
-              <Text className={styles.scanModeValue}>Serial Number</Text>
-              <Text className={styles.scanModeLabel}>7 characters</Text>
-            </>
-          )}
-        </div>
+        {!scannedAsset && (
+          <div className={styles.scanModeIndicator}>
+            <Tag24Regular style={{ fontSize: '32px' }} />
+            <Text className={styles.scanModeLabel}>Scan</Text>
+            <Text className={styles.scanModeValue}>Asset Tag</Text>
+            <Text className={styles.scanModeLabel}>Format: EW##-#####</Text>
+          </div>
+        )}
 
-        {/* Pending Asset Tag Banner */}
-        {pendingAssetTag && (
-          <div className={styles.pendingAssetTagBanner}>
-            <Tag24Regular />
-            <Text weight="semibold">{pendingAssetTag}</Text>
-            <Button
-              className={styles.cancelButton}
-              appearance="subtle"
-              icon={<ArrowUndo24Regular />}
-              onClick={cancelPendingAssetTag}
-              title="Cancel and re-scan Asset Tag"
-            />
+        {/* Eligibility Result Panel */}
+        {scannedAsset && (
+          <div className={styles.eligibilityResult}>
+            <Text className={styles.eligibilityAssetTag}>{scannedAsset.assetTag}</Text>
+            {scannedAsset.isChecking ? (
+              <>
+                <Spinner size="small" />
+                <Text style={{ color: '#fff' }}>Checking eligibility...</Text>
+              </>
+            ) : (
+              <>
+                <EligibilityBadge
+                  status={scannedAsset.eligibilityStatus}
+                  eligibleAfterYear={scannedAsset.eligibleAfterYear}
+                />
+                <div className={styles.eligibilityActions}>
+                  <Button className={styles.actionButton} appearance="secondary" onClick={handleDismissResult}>
+                    Cancel
+                  </Button>
+                  {scannedAsset.eligibilityStatus === 'eligible' && (
+                    <Button className={styles.primaryActionButton} appearance="primary" onClick={handleContinueToForm}>
+                      Add Details
+                    </Button>
+                  )}
+                  {scannedAsset.eligibilityStatus !== 'eligible' && (
+                    <Button className={styles.primaryActionButton} appearance="primary" onClick={handleDismissResult}>
+                      Scan Another
+                    </Button>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         )}
 
         {/* Header Overlay */}
         <div className={styles.header}>
-          <Text className={styles.headerTitle}>Scanning</Text>
+          <Text className={styles.headerTitle}>Field Refresh Check</Text>
           <span className={styles.badge}>{scannedCount} scanned</span>
         </div>
-
-        {/* Success Banner */}
-        {lastScanned && (
-          <div className={styles.lastScannedBanner}>
-            <Checkmark24Regular />
-            <Text weight="semibold">{lastScanned}</Text>
-          </div>
-        )}
 
         {/* Error Banner */}
         {error && (
@@ -519,14 +635,14 @@ export function ScanningScreen() {
       {/* Bottom Panel */}
       <div className={styles.bottomPanel}>
         <div className={styles.panelHeader}>
-          <Text className={styles.panelTitle}>Scanned Items</Text>
+          <Text className={styles.panelTitle}>Eligible Machines</Text>
           <Text className={styles.panelCount}>{scannedCount} total</Text>
         </div>
 
         <div className={styles.scannedList}>
           {recentScans.length === 0 ? (
             <div className={styles.emptyState}>
-              <Text size={200}>No items scanned yet</Text>
+              <Text>No machines scanned yet</Text>
             </div>
           ) : (
             recentScans.map((record) => (
@@ -535,7 +651,9 @@ export function ScanningScreen() {
                   <Checkmark24Regular className={styles.itemIcon} />
                   <div className={styles.scannedItemDetails}>
                     <Text className={styles.scannedItemAsset}>{record.assetTag}</Text>
-                    <Text className={styles.scannedItemSerial}>{record.serialNumber}</Text>
+                    <Text className={styles.scannedItemSerial}>
+                      {record.serialNumber} - {record.department}
+                    </Text>
                   </div>
                 </div>
               </div>
@@ -544,7 +662,7 @@ export function ScanningScreen() {
         </div>
 
         <div className={styles.buttonRow}>
-          {scannerType === 'teams-native' && (
+          {scannerType === 'teams-native' && !scannedAsset && (
             <Button
               className={styles.scanButton}
               appearance="primary"
@@ -564,6 +682,18 @@ export function ScanningScreen() {
           </Button>
         </div>
       </div>
+
+      {/* Form Dialog */}
+      {scannedAsset && (
+        <FieldRefreshFormDialog
+          open={showFormDialog}
+          assetTag={scannedAsset.assetTag}
+          eligibilityStatus={scannedAsset.eligibilityStatus}
+          eligibleAfterYear={scannedAsset.eligibleAfterYear}
+          onSubmit={handleFormSubmit}
+          onCancel={handleFormCancel}
+        />
+      )}
     </div>
   );
 }

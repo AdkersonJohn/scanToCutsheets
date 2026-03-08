@@ -1,6 +1,6 @@
 import { Client } from '@microsoft/microsoft-graph-client';
 import { getAccessToken } from './authService';
-import type { ScanRecord } from '@/types';
+import type { ScanRecord, FieldRefreshRecord } from '@/types';
 
 let graphClient: Client | null = null;
 
@@ -205,4 +205,143 @@ export function getConfiguredListId(): string | null {
 
 export function isSharePointConfigured(): boolean {
   return getConfiguredSiteId() !== null && getConfiguredListId() !== null;
+}
+
+// Field Refresh Check functions
+
+export interface ExistingCutSheetResult {
+  exists: boolean;
+  cutSheetId?: string;
+}
+
+export async function checkExistingCutSheet(
+  siteId: string,
+  listId: string,
+  assetTag: string
+): Promise<ExistingCutSheetResult> {
+  const client = await getClient();
+
+  try {
+    const response = await client
+      .api(`/sites/${siteId}/lists/${listId}/items`)
+      .filter(`fields/NewSystemAssetTag eq '${assetTag}'`)
+      .top(1)
+      .select('id')
+      .get();
+
+    const items = response.value || [];
+    if (items.length > 0) {
+      return { exists: true, cutSheetId: items[0].id };
+    }
+    return { exists: false };
+  } catch (error) {
+    console.error('Failed to check existing cut sheet:', error);
+    throw new Error('Failed to check for existing cut sheet. Check your permissions.');
+  }
+}
+
+export interface FieldRefreshSubmissionProgress {
+  completed: number;
+  total: number;
+  recordId: string;
+  success: boolean;
+  error?: string;
+}
+
+export async function addToFieldRefreshTodoList(
+  siteId: string,
+  driveId: string,
+  fileId: string,
+  tableName: string,
+  record: FieldRefreshRecord,
+  userName: string
+): Promise<void> {
+  const client = await getClient();
+
+  try {
+    await client
+      .api(`/sites/${siteId}/drives/${driveId}/items/${fileId}/workbook/tables/${tableName}/rows`)
+      .post({
+        values: [[
+          record.assetTag,
+          record.serialNumber,
+          record.department,
+          record.locationNotes,
+          record.machineType,
+          record.monitorAssetTag || '',
+          record.monitorSerial || '',
+          userName,
+          new Date().toISOString(),
+        ]],
+      });
+  } catch (error) {
+    console.error('Failed to add to Field Refresh TODO list:', error);
+    throw new Error('Failed to add record to Excel. Check your permissions.');
+  }
+}
+
+export async function submitFieldRefreshRecords(
+  siteId: string,
+  driveId: string,
+  fileId: string,
+  tableName: string,
+  records: FieldRefreshRecord[],
+  userName: string,
+  onProgress: (progress: FieldRefreshSubmissionProgress) => void
+): Promise<{ successCount: number; failedCount: number }> {
+  const total = records.length;
+  let successCount = 0;
+  let failedCount = 0;
+
+  for (let i = 0; i < records.length; i++) {
+    const record = records[i];
+
+    try {
+      await addToFieldRefreshTodoList(siteId, driveId, fileId, tableName, record, userName);
+      successCount++;
+      onProgress({
+        completed: i + 1,
+        total,
+        recordId: record.id,
+        success: true,
+      });
+    } catch (error) {
+      failedCount++;
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      onProgress({
+        completed: i + 1,
+        total,
+        recordId: record.id,
+        success: false,
+        error: errorMessage,
+      });
+    }
+  }
+
+  return { successCount, failedCount };
+}
+
+// Field Refresh TODO list configuration
+export function getFieldRefreshTodoDriveId(): string | null {
+  const driveId = import.meta.env.VITE_SHAREPOINT_TODO_DRIVE_ID;
+  return driveId && driveId.trim() !== '' ? driveId : null;
+}
+
+export function getFieldRefreshTodoFileId(): string | null {
+  const fileId = import.meta.env.VITE_SHAREPOINT_TODO_FILE_ID;
+  return fileId && fileId.trim() !== '' ? fileId : null;
+}
+
+export function getFieldRefreshTodoTableName(): string | null {
+  const tableName = import.meta.env.VITE_SHAREPOINT_TODO_TABLE_NAME;
+  return tableName && tableName.trim() !== '' ? tableName : null;
+}
+
+export function isFieldRefreshTodoConfigured(): boolean {
+  return (
+    getConfiguredSiteId() !== null &&
+    getFieldRefreshTodoDriveId() !== null &&
+    getFieldRefreshTodoFileId() !== null &&
+    getFieldRefreshTodoTableName() !== null
+  );
 }

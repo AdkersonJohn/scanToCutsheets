@@ -5,6 +5,8 @@ import {
   formatAssetTag,
   ASSET_TAG_PATTERN,
   SERIAL_NUMBER_PATTERN,
+  extractYearFromAssetTag,
+  isEligibleForRefresh,
 } from './index';
 
 describe('Validation Functions', () => {
@@ -210,6 +212,97 @@ describe('Validation Functions', () => {
       it('should not match invalid length', () => {
         expect(SERIAL_NUMBER_PATTERN.test('ABC123')).toBe(false);
         expect(SERIAL_NUMBER_PATTERN.test('ABC12345')).toBe(false);
+      });
+    });
+  });
+
+  describe('extractYearFromAssetTag', () => {
+    it('should extract year 2022 from EW22-12345', () => {
+      expect(extractYearFromAssetTag('EW22-12345')).toBe(2022);
+    });
+
+    it('should extract year 2026 from EW26-03975', () => {
+      expect(extractYearFromAssetTag('EW26-03975')).toBe(2026);
+    });
+
+    it('should extract year 2000 from EW00-00000', () => {
+      expect(extractYearFromAssetTag('EW00-00000')).toBe(2000);
+    });
+
+    it('should extract year 2099 from EW99-99999', () => {
+      expect(extractYearFromAssetTag('EW99-99999')).toBe(2099);
+    });
+
+    it('should return null for invalid asset tag', () => {
+      expect(extractYearFromAssetTag('invalid')).toBeNull();
+    });
+
+    it('should return null for lowercase asset tag', () => {
+      expect(extractYearFromAssetTag('ew22-12345')).toBeNull();
+    });
+
+    it('should return null for empty string', () => {
+      expect(extractYearFromAssetTag('')).toBeNull();
+    });
+  });
+
+  describe('isEligibleForRefresh', () => {
+    describe('should mark as eligible for EW22 and older', () => {
+      it('should be eligible for EW22', () => {
+        const result = isEligibleForRefresh('EW22-12345');
+        expect(result.eligible).toBe(true);
+        expect(result.year).toBe(2022);
+        expect(result.eligibleAfterYear).toBeUndefined();
+      });
+
+      it('should be eligible for EW20', () => {
+        const result = isEligibleForRefresh('EW20-12345');
+        expect(result.eligible).toBe(true);
+        expect(result.year).toBe(2020);
+      });
+
+      it('should be eligible for EW18', () => {
+        const result = isEligibleForRefresh('EW18-12345');
+        expect(result.eligible).toBe(true);
+        expect(result.year).toBe(2018);
+      });
+    });
+
+    describe('should mark as not eligible for EW23 and newer', () => {
+      it('should not be eligible for EW23', () => {
+        const result = isEligibleForRefresh('EW23-12345');
+        expect(result.eligible).toBe(false);
+        expect(result.year).toBe(2023);
+        expect(result.eligibleAfterYear).toBe(2027);
+      });
+
+      it('should not be eligible for EW24', () => {
+        const result = isEligibleForRefresh('EW24-12345');
+        expect(result.eligible).toBe(false);
+        expect(result.year).toBe(2024);
+        expect(result.eligibleAfterYear).toBe(2028);
+      });
+
+      it('should not be eligible for EW26', () => {
+        const result = isEligibleForRefresh('EW26-03975');
+        expect(result.eligible).toBe(false);
+        expect(result.year).toBe(2026);
+        expect(result.eligibleAfterYear).toBe(2030);
+      });
+    });
+
+    describe('should handle invalid asset tags', () => {
+      it('should return not eligible with null year for invalid tag', () => {
+        const result = isEligibleForRefresh('invalid');
+        expect(result.eligible).toBe(false);
+        expect(result.year).toBeNull();
+        expect(result.eligibleAfterYear).toBeUndefined();
+      });
+
+      it('should return not eligible for empty string', () => {
+        const result = isEligibleForRefresh('');
+        expect(result.eligible).toBe(false);
+        expect(result.year).toBeNull();
       });
     });
   });
