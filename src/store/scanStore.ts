@@ -1,7 +1,16 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
-import type { ScanRecord, ScanningSession, AppScreen, SubmissionResult, ScanMode } from '@/types';
+import type {
+  ScanRecord,
+  ScanningSession,
+  AppScreen,
+  SubmissionResult,
+  ScanMode,
+  AppMode,
+  FieldRefreshRecord,
+  FieldRefreshSession,
+} from '@/types';
 import { validateAssetTag, validateSerialNumber, formatAssetTag } from '@/types';
 
 interface ScanState {
@@ -15,6 +24,12 @@ interface ScanState {
   // Paired scanning state
   scanMode: ScanMode;
   pendingAssetTag: string | null;
+
+  // Mode management for three-mode app
+  currentMode: AppMode | null;
+
+  // Field Refresh session
+  fieldRefreshSession: FieldRefreshSession | null;
 
   setScreen: (screen: AppScreen) => void;
   startSession: (userId: string, userName: string) => void;
@@ -33,6 +48,19 @@ interface ScanState {
   markRecordFailed: (id: string, errorMessage: string) => void;
   clearSession: () => void;
   reset: () => void;
+
+  // Mode management actions
+  setMode: (mode: AppMode | null) => void;
+
+  // Field Refresh session actions
+  startFieldRefreshSession: (userId: string, userName: string) => void;
+  addFieldRefreshRecord: (record: Omit<FieldRefreshRecord, 'id' | 'scannedAt'>) => void;
+  updateFieldRefreshRecord: (id: string, updates: Partial<FieldRefreshRecord>) => void;
+  removeFieldRefreshRecord: (id: string) => void;
+  clearFieldRefreshSession: () => void;
+  endFieldRefreshSession: () => void;
+  markFieldRefreshRecordSubmitted: (id: string) => void;
+  markFieldRefreshRecordFailed: (id: string, errorMessage: string) => void;
 }
 
 const initialState = {
@@ -44,6 +72,8 @@ const initialState = {
   submissionProgress: 0,
   scanMode: 'assetTag' as ScanMode,
   pendingAssetTag: null as string | null,
+  currentMode: null as AppMode | null,
+  fieldRefreshSession: null as FieldRefreshSession | null,
 };
 
 export const useScanStore = create<ScanState>()(
@@ -254,6 +284,118 @@ export const useScanStore = create<ScanState>()(
         });
       },
 
+      // Mode management actions
+      setMode: (mode) => set({ currentMode: mode }),
+
+      // Field Refresh session actions
+      startFieldRefreshSession: (userId, userName) => {
+        const session: FieldRefreshSession = {
+          id: uuidv4(),
+          userId,
+          userName,
+          startedAt: new Date(),
+          endedAt: null,
+          records: [],
+        };
+        set({
+          fieldRefreshSession: session,
+          currentScreen: 'fieldRefreshScan',
+          currentMode: 'fieldRefreshCheck',
+        });
+      },
+
+      addFieldRefreshRecord: (record) => {
+        const { fieldRefreshSession } = get();
+        if (!fieldRefreshSession) return;
+
+        const newRecord: FieldRefreshRecord = {
+          ...record,
+          id: uuidv4(),
+          scannedAt: new Date(),
+        };
+
+        set({
+          fieldRefreshSession: {
+            ...fieldRefreshSession,
+            records: [...fieldRefreshSession.records, newRecord],
+          },
+        });
+      },
+
+      updateFieldRefreshRecord: (id, updates) => {
+        const { fieldRefreshSession } = get();
+        if (!fieldRefreshSession) return;
+
+        set({
+          fieldRefreshSession: {
+            ...fieldRefreshSession,
+            records: fieldRefreshSession.records.map((r) =>
+              r.id === id ? { ...r, ...updates } : r
+            ),
+          },
+        });
+      },
+
+      removeFieldRefreshRecord: (id) => {
+        const { fieldRefreshSession } = get();
+        if (!fieldRefreshSession) return;
+
+        set({
+          fieldRefreshSession: {
+            ...fieldRefreshSession,
+            records: fieldRefreshSession.records.filter((r) => r.id !== id),
+          },
+        });
+      },
+
+      clearFieldRefreshSession: () => {
+        set({
+          fieldRefreshSession: null,
+          submissionResults: [],
+          submissionProgress: 0,
+          currentScreen: 'home',
+          currentMode: null,
+        });
+      },
+
+      endFieldRefreshSession: () => {
+        const { fieldRefreshSession } = get();
+        if (fieldRefreshSession) {
+          set({
+            fieldRefreshSession: { ...fieldRefreshSession, endedAt: new Date() },
+            currentScreen: 'fieldRefreshReview',
+          });
+        }
+      },
+
+      markFieldRefreshRecordSubmitted: (id) => {
+        const { fieldRefreshSession } = get();
+        if (!fieldRefreshSession) return;
+
+        set({
+          fieldRefreshSession: {
+            ...fieldRefreshSession,
+            records: fieldRefreshSession.records.map((r) =>
+              r.id === id ? { ...r, status: 'submitted' } : r
+            ),
+          },
+        });
+      },
+
+      markFieldRefreshRecordFailed: (id, errorMessage) => {
+        const { fieldRefreshSession } = get();
+        if (!fieldRefreshSession) return;
+
+        set({
+          fieldRefreshSession: {
+            ...fieldRefreshSession,
+            records: fieldRefreshSession.records.map((r) =>
+              r.id === id ? { ...r, status: 'failed', errorMessage } : r
+            ),
+          },
+        });
+      },
+
       reset: () => set(initialState),
     }),
     {
@@ -261,6 +403,8 @@ export const useScanStore = create<ScanState>()(
       partialize: (state) => ({
         session: state.session,
         currentScreen: state.currentScreen,
+        currentMode: state.currentMode,
+        fieldRefreshSession: state.fieldRefreshSession,
       }),
     }
   )

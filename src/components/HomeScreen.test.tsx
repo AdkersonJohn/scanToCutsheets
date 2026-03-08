@@ -39,11 +39,12 @@ describe('HomeScreen', () => {
       });
     });
 
-    it('should show app description', async () => {
+    it('should show mode selection prompt when authenticated', async () => {
+      vi.mocked(authService.isAuthenticated).mockResolvedValue(true);
       render(<HomeScreen />);
 
       await waitFor(() => {
-        expect(screen.getByText(/Scan asset tag barcodes/i)).toBeInTheDocument();
+        expect(screen.getByText(/What would you like to do/i)).toBeInTheDocument();
       });
     });
 
@@ -105,26 +106,60 @@ describe('HomeScreen', () => {
       });
     });
 
-    it('should show Start Scanning button when authenticated', async () => {
+    it('should show mode selection cards when authenticated', async () => {
       render(<HomeScreen />);
 
       await waitFor(() => {
-        expect(screen.getByText(/Start Scanning/i)).toBeInTheDocument();
+        expect(screen.getByText('Create Cut Sheets')).toBeInTheDocument();
+        expect(screen.getByText('Field Refresh Check')).toBeInTheDocument();
+        expect(screen.getByText('Finish Cut Sheets')).toBeInTheDocument();
       });
     });
 
-    it('should start session when Start Scanning is clicked', async () => {
+    it('should show Create Cut Sheets card description', async () => {
       render(<HomeScreen />);
 
       await waitFor(() => {
-        expect(screen.getByText(/Start Scanning/i)).toBeInTheDocument();
+        expect(screen.getByText(/Scan boxes to create new cut sheets/i)).toBeInTheDocument();
+      });
+    });
+
+    it('should start session when Create Cut Sheets card is clicked', async () => {
+      render(<HomeScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Create Cut Sheets')).toBeInTheDocument();
       });
 
-      const startButton = screen.getByText(/Start Scanning/i);
-      await user.click(startButton);
+      const createButton = screen.getByText('Create Cut Sheets');
+      await user.click(createButton);
 
       expect(useScanStore.getState().session).not.toBeNull();
       expect(useScanStore.getState().currentScreen).toBe('scanning');
+      expect(useScanStore.getState().currentMode).toBe('createCutSheets');
+    });
+
+    it('should start field refresh session when Field Refresh Check card is clicked', async () => {
+      render(<HomeScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText('Field Refresh Check')).toBeInTheDocument();
+      });
+
+      const fieldRefreshButton = screen.getByText('Field Refresh Check');
+      await user.click(fieldRefreshButton);
+
+      expect(useScanStore.getState().fieldRefreshSession).not.toBeNull();
+      expect(useScanStore.getState().currentScreen).toBe('fieldRefreshScan');
+      expect(useScanStore.getState().currentMode).toBe('fieldRefreshCheck');
+    });
+
+    it('should show Coming Soon for Finish Cut Sheets', async () => {
+      render(<HomeScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Coming Soon/i)).toBeInTheDocument();
+      });
     });
 
     it('should call logout when sign out button is clicked', async () => {
@@ -177,25 +212,71 @@ describe('HomeScreen', () => {
       useScanStore.getState().setScreen('home');
     });
 
-    it('should show Resume Session button when there are existing records', async () => {
+    it('should show Resume Cut Sheets button when there are existing records', async () => {
       render(<HomeScreen />);
 
       await waitFor(() => {
-        expect(screen.getByText(/Resume Session/i)).toBeInTheDocument();
+        expect(screen.getByText(/Resume Cut Sheets/i)).toBeInTheDocument();
       });
     });
 
-    it('should navigate to review screen when Resume Session is clicked', async () => {
+    it('should navigate to review screen when Resume Cut Sheets is clicked', async () => {
       render(<HomeScreen />);
 
       await waitFor(() => {
-        expect(screen.getByText(/Resume Session/i)).toBeInTheDocument();
+        expect(screen.getByText(/Resume Cut Sheets/i)).toBeInTheDocument();
       });
 
-      const resumeButton = screen.getByText(/Resume Session/i);
+      const resumeButton = screen.getByText(/Resume Cut Sheets/i);
       await user.click(resumeButton);
 
       expect(useScanStore.getState().currentScreen).toBe('review');
+      expect(useScanStore.getState().currentMode).toBe('createCutSheets');
+    });
+  });
+
+  describe('Existing Field Refresh Session', () => {
+    beforeEach(async () => {
+      vi.mocked(authService.isAuthenticated).mockResolvedValue(true);
+      vi.mocked(authService.getCurrentUser).mockResolvedValue({
+        id: 'user-123',
+        displayName: 'John Doe',
+        email: 'john@example.com',
+      });
+
+      // Create an existing field refresh session with records
+      useScanStore.getState().startFieldRefreshSession('user-123', 'John Doe');
+      useScanStore.getState().addFieldRefreshRecord({
+        assetTag: 'EW22-12345',
+        serialNumber: 'XYZ1234',
+        department: 'IT',
+        locationNotes: 'Building A',
+        machineType: 'desktop',
+        status: 'pending',
+        eligibilityStatus: 'eligible',
+      });
+      useScanStore.getState().setScreen('home');
+    });
+
+    it('should show Resume Field Refresh button when there are existing records', async () => {
+      render(<HomeScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Resume Field Refresh/i)).toBeInTheDocument();
+      });
+    });
+
+    it('should navigate to field refresh review screen when Resume Field Refresh is clicked', async () => {
+      render(<HomeScreen />);
+
+      await waitFor(() => {
+        expect(screen.getByText(/Resume Field Refresh/i)).toBeInTheDocument();
+      });
+
+      const resumeButton = screen.getByText(/Resume Field Refresh/i);
+      await user.click(resumeButton);
+
+      expect(useScanStore.getState().currentScreen).toBe('fieldRefreshReview');
     });
   });
 });

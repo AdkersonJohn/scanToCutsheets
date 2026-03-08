@@ -6,6 +6,9 @@ import { HomeScreen } from '@/components/HomeScreen';
 import { ScanningScreen } from '@/components/ScanningScreen';
 import { ReviewScreen } from '@/components/ReviewScreen';
 import { SubmissionScreen } from '@/components/SubmissionScreen';
+import { FieldRefreshScanScreen } from '@/components/FieldRefreshScanScreen';
+import { FieldRefreshReviewScreen } from '@/components/FieldRefreshReviewScreen';
+import { FieldRefreshSubmissionScreen } from '@/components/FieldRefreshSubmissionScreen';
 import { OfflineBanner } from '@/components/OfflineBanner';
 
 const useStyles = makeStyles({
@@ -79,6 +82,12 @@ function App() {
         return <ReviewScreen />;
       case 'submission':
         return <SubmissionScreen />;
+      case 'fieldRefreshScan':
+        return <FieldRefreshScanScreen />;
+      case 'fieldRefreshReview':
+        return <FieldRefreshReviewScreen />;
+      case 'fieldRefreshSubmission':
+        return <FieldRefreshSubmissionScreen />;
       default:
         return <HomeScreen />;
     }
