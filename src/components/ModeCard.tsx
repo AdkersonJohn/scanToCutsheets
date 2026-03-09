@@ -1,4 +1,4 @@
-import { makeStyles, Text, Card, CardHeader } from '@fluentui/react-components';
+import { makeStyles, Card, CardHeader } from '@fluentui/react-components';
 import { ChevronRight24Regular } from '@fluentui/react-icons';
 import {
   encoreColors,
@@ -68,18 +68,21 @@ const useStyles = makeStyles({
     gap: '4px',
   },
   title: {
+    display: 'block',
     fontSize: '17px',
     fontWeight: encoreTypography.fontWeight.semibold,
     fontFamily: encoreTypography.fontFamily.heading,
     color: encoreColors.charcoal,
   },
   description: {
+    display: 'block',
     fontSize: '14px',
     fontFamily: encoreTypography.fontFamily.body,
     color: encoreColors.bodyGray,
     lineHeight: 1.4,
   },
   comingSoon: {
+    display: 'block',
     fontSize: '12px',
     fontFamily: encoreTypography.fontFamily.body,
     color: encoreColors.bodyGray,
@@ -126,9 +129,9 @@ export function ModeCard({ title, description, icon, onClick, disabled, comingSo
               <span className={styles.icon}>{icon}</span>
             </div>
             <div className={styles.textContainer}>
-              <Text className={styles.title}>{title}</Text>
-              <Text className={styles.description}>{description}</Text>
-              {comingSoon && <Text className={styles.comingSoon}>(Coming Soon)</Text>}
+              <span className={styles.title}>{title}</span>
+              <span className={styles.description}>{description}</span>
+              {comingSoon && <span className={styles.comingSoon}>(Coming Soon)</span>}
             </div>
             {!comingSoon && <ChevronRight24Regular className={styles.chevron} />}
           </div>
