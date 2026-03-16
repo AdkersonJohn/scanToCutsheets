@@ -243,13 +243,54 @@ Set(varShowResult, true);
 | | BorderRadius | `25` |
 | | OnSelect | `Set(varShowResult, false); Set(varScannedValue, Blank())` |
 
-### 4.7 Instructions (Initial State)
+### 4.7 WiFi Warning Overlay
+
+| Control | Property | Value |
+|---------|----------|-------|
+| Rectangle | Name | `rectOfflineOverlay` |
+| | Fill | `RGBA(0, 0, 0, 0.85)` |
+| | Visible | `!Connection.Connected` |
+| | Width | `Parent.Width` |
+| | Height | `Parent.Height` |
+| | X | `0` |
+| | Y | `0` |
+| Icon | Name | `iconWifiWarning` |
+| | Icon | `Icon.Warning` |
+| | Color | `RGBA(251, 191, 36, 1)` |
+| | Width | `80` |
+| | Height | `80` |
+| | X | `(Parent.Width - 80) / 2` |
+| | Y | `280` |
+| | Visible | `!Connection.Connected` |
+| Label | Name | `lblWifiWarning` |
+| | Text | `"Warning: Connect to WiFi Before You Continue"` |
+| | Color | `White` |
+| | Size | `20` |
+| | FontWeight | `FontWeight.Bold` |
+| | Align | `Align.Center` |
+| | Y | `380` |
+| | Width | `Parent.Width - 40` |
+| | X | `20` |
+| | Visible | `!Connection.Connected` |
+| Label | Name | `lblWifiSubtext` |
+| | Text | `"This app requires an internet connection to check for existing cut sheets."` |
+| | Color | `RGBA(156, 163, 175, 1)` |
+| | Size | `14` |
+| | Align | `Align.Center` |
+| | Y | `430` |
+| | Width | `Parent.Width - 60` |
+| | X | `30` |
+| | Visible | `!Connection.Connected` |
+
+**Note:** The overlay covers the entire screen and prevents interaction until WiFi is restored. `Connection.Connected` automatically updates when connectivity changes.
+
+### 4.8 Instructions (Initial State)
 
 | Control | Property | Value |
 |---------|----------|-------|
 | Label | Name | `lblInstructions` |
 | | Text | `"Point camera at asset tag barcode"` |
-| | Visible | `!varShowResult && !varIsSearching` |
+| | Visible | `!varShowResult && !varIsSearching && Connection.Connected` |
 | | Size | `16` |
 | | Color | `RGBA(107, 114, 128, 1)` |
 | | Align | `Align.Center` |
