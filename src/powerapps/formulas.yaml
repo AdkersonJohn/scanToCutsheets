@@ -1,0 +1,284 @@
+# Power Apps Canvas App Formulas
+# Asset Barcode Scanner
+#
+# This file documents all Power Fx formulas used in the app.
+# Copy these formulas into the corresponding controls in Power Apps Studio.
+#
+# Requirements covered: FR-01 through FR-21, NFR-01 through NFR-13
+
+# =============================================================================
+# APP CONFIGURATION
+# =============================================================================
+
+App:
+  OnStart: |
+    // Initialize app variables
+    Set(varCurrentUser, User());
+    Set(varIsOnline, Connection.Connected);
+    Set(varSessionHistory, Table());
+    Set(varShowManualEntry, false);
+    Set(varLastError, Blank());
+    Set(varIsSubmitting, false);
+
+    // SharePoint list connection name
+    Set(varListName, "Computer Asset Scans");
+
+# =============================================================================
+# SCREEN: MainScreen
+# =============================================================================
+
+MainScreen:
+  OnVisible: |
+    // Reset form when screen becomes visible
+    Reset(txtLocation);
+    Reset(txtNotes);
+    Set(varScannedValue, Blank());
+    Set(varLastError, Blank());
+
+# =============================================================================
+# BARCODE SCANNER CONTROL
+# =============================================================================
+
+BarcodeScanner:
+  # Requirement: FR-01, FR-02, FR-04
+  name: brcScanner
+
+  BarcodeType: |
+    // Support multiple barcode formats (FR-02)
+    BarcodeType.Auto
+
+  OnScan: |
+    // FR-03: Display scanned value for verification
+    // FR-04: Visual feedback on successful scan
+    Set(varScannedValue, brcScanner.Value);
+    Set(varLastError, Blank());
+
+    // Play success sound (FR-04)
+    // Note: Requires media control with success sound
+
+    // Validate barcode
+    If(
+      IsBlank(brcScanner.Value),
+      Set(varLastError, "No barcode detected. Please try again."),
+
+      Len(brcScanner.Value) > 128,
+      Set(varLastError, "Barcode too long. Maximum 128 characters."),
+
+      // Success - value is valid
+      Set(varLastError, Blank())
+    )
+
+  OnCancel: |
+    // User cancelled scanning
+    Set(varLastError, Blank())
+
+# =============================================================================
+# MANUAL ENTRY TOGGLE (FR-05)
+# =============================================================================
+
+btnManualEntry:
+  OnSelect: |
+    Set(varShowManualEntry, !varShowManualEntry);
+    If(varShowManualEntry, SetFocus(txtManualBarcode))
+
+  Text: |
+    If(varShowManualEntry, "Use Scanner", "Manual Entry")
+
+txtManualBarcode:
+  # Requirement: FR-05
+  Visible: varShowManualEntry
+
+  HintText: "Enter barcode value..."
+
+  MaxLength: 128
+
+  OnChange: |
+    Set(varScannedValue, txtManualBarcode.Text);
+    Set(varLastError, Blank())
+
+# =============================================================================
+# SCANNED VALUE DISPLAY (FR-03)
+# =============================================================================
+
+lblScannedValue:
+  Text: |
+    If(
+      IsBlank(varScannedValue),
+      "No barcode scanned",
+      varScannedValue
+    )
+
+  Visible: true
+
+# =============================================================================
+# OPTIONAL FIELDS (FR-15, FR-20)
+# =============================================================================
+
+txtLocation:
+  # Requirement: FR-20
+  HintText: "Location (optional)"
+  MaxLength: 255
+
+txtNotes:
+  # Requirement: FR-20
+  Mode: TextMode.MultiLine
+  HintText: "Notes (optional)"
+  MaxLength: 1000
+
+# =============================================================================
+# SUBMIT BUTTON
+# =============================================================================
+
+btnSubmit:
+  # Requirements: FR-06, FR-07, FR-08, FR-09, FR-10
+
+  Text: |
+    If(varIsSubmitting, "Submitting...", "Submit")
+
+  DisplayMode: |
+    If(
+      IsBlank(varScannedValue) || varIsSubmitting,
+      DisplayMode.Disabled,
+      DisplayMode.Edit
+    )
+
+  OnSelect: |
+    // Prevent double submission
+    Set(varIsSubmitting, true);
+    Set(varLastError, Blank());
+
+    // Validate before submit
+    If(
+      IsBlank(varScannedValue),
+      Set(varLastError, "Please scan or enter a barcode first.");
+      Set(varIsSubmitting, false),
+
+      // Attempt to submit to SharePoint
+      // FR-07: Create new list item
+      // FR-08: Auto-populate timestamp
+      // FR-09: Auto-populate current user
+      IfError(
+        Patch(
+          'Computer Asset Scans',
+          Defaults('Computer Asset Scans'),
+          {
+            Title: "Scan: " & Left(varScannedValue, 20) & " (" & Text(Now(), "yyyy-mm-dd") & ")",
+            BarcodeValue: varScannedValue,
+            ScannedBy: varCurrentUser,
+            ScannedDate: Now(),
+            Location: If(IsBlank(txtLocation.Text), Blank(), txtLocation.Text),
+            Notes: If(IsBlank(txtNotes.Text), Blank(), txtNotes.Text)
+          }
+        );
+
+        // FR-10: Confirm successful write
+        // FR-14: Add to session history
+        Collect(
+          varSessionHistory,
+          {
+            BarcodeValue: varScannedValue,
+            ScannedAt: Now(),
+            Location: txtLocation.Text
+          }
+        );
+
+        // Reset form for next scan
+        Reset(txtLocation);
+        Reset(txtNotes);
+        Reset(txtManualBarcode);
+        Set(varScannedValue, Blank());
+        Set(varShowManualEntry, false);
+        Set(varIsSubmitting, false);
+
+        // Show success notification
+        Notify("Scan saved successfully!", NotificationType.Success),
+
+        // Error handling (FR-16)
+        Set(varLastError, "Failed to save scan. Please try again.");
+        Set(varIsSubmitting, false)
+      )
+    )
+
+# =============================================================================
+# ERROR DISPLAY (FR-16)
+# =============================================================================
+
+lblError:
+  Text: varLastError
+
+  Visible: |
+    !IsBlank(varLastError)
+
+  Color: RGBA(220, 53, 69, 1)
+
+  Font: Font.'Segoe UI'
+  FontWeight: FontWeight.Semibold
+
+# =============================================================================
+# SESSION HISTORY (FR-14)
+# =============================================================================
+
+galSessionHistory:
+  # Requirement: FR-14
+  Items: |
+    Sort(varSessionHistory, ScannedAt, SortOrder.Descending)
+
+  Visible: |
+    CountRows(varSessionHistory) > 0
+
+galSessionHistory_lblBarcode:
+  Text: ThisItem.BarcodeValue
+
+galSessionHistory_lblTime:
+  Text: |
+    Text(ThisItem.ScannedAt, "hh:mm:ss AM/PM")
+
+galSessionHistory_lblLocation:
+  Text: |
+    If(IsBlank(ThisItem.Location), "-", ThisItem.Location)
+
+lblHistoryEmpty:
+  Text: "No scans this session"
+  Visible: |
+    CountRows(varSessionHistory) = 0
+
+# =============================================================================
+# NETWORK STATUS
+# =============================================================================
+
+icoOffline:
+  # Requirement: NFR-11
+  Icon: Icon.Warning
+
+  Visible: |
+    !Connection.Connected
+
+  Tooltip: "You are offline. Scans will not be saved."
+
+# =============================================================================
+# APP STYLING (NFR-13 - Microsoft Design Patterns)
+# =============================================================================
+
+Styling:
+  PrimaryColor: "RGBA(0, 120, 212, 1)"      # Microsoft Blue
+  SecondaryColor: "RGBA(243, 242, 241, 1)"  # Light Gray
+  ErrorColor: "RGBA(220, 53, 69, 1)"        # Red
+  SuccessColor: "RGBA(40, 167, 69, 1)"      # Green
+  TextColor: "RGBA(50, 49, 48, 1)"          # Dark Gray
+
+  # Font sizes for accessibility
+  HeaderSize: 24
+  BodySize: 16
+  CaptionSize: 14
+
+# =============================================================================
+# ACCESSIBILITY (NFR-11, NFR-13)
+# =============================================================================
+
+Accessibility:
+  # All interactive controls should have:
+  AccessibleLabel: "Descriptive label for screen readers"
+  TabIndex: "Logical tab order"
+
+  # Color contrast meets WCAG AA standards
+  # Touch targets minimum 44x44 pixels (NFR-12)

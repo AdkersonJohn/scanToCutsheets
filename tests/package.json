@@ -1,0 +1,48 @@
+{
+  "name": "power-apps-barcode-scanner-tests",
+  "version": "1.0.0",
+  "description": "Test suite for Power Apps Barcode Scanner application",
+  "private": true,
+  "scripts": {
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:unit": "jest --config jest.config.js",
+    "test:unit:watch": "jest --config jest.config.js --watch",
+    "test:unit:coverage": "jest --config jest.config.js --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:mobile": "playwright test --project=mobile-iphone --project=mobile-android",
+    "test:e2e:tablet": "playwright test --project=tablet-ipad --project=tablet-ipad-pro",
+    "test:e2e:desktop": "playwright test --project=chromium-desktop --project=firefox-desktop",
+    "test:e2e:report": "playwright show-report test-results/html-report",
+    "test:performance": "playwright test --project=performance",
+    "playwright:install": "playwright install",
+    "playwright:codegen": "playwright codegen",
+    "lint": "eslint . --ext .ts",
+    "clean": "rm -rf test-results coverage .auth",
+    "clean:screenshots": "find . -name '*.png' -o -name '*.jpeg' -o -name '*.mp4' | xargs rm -f"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.42.0",
+    "@types/jest": "^29.5.12",
+    "@types/node": "^20.11.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.56.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.2",
+    "typescript": "^5.3.3"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "power-apps",
+    "barcode-scanner",
+    "e2e-testing",
+    "playwright",
+    "jest",
+    "sharepoint"
+  ]
+}
