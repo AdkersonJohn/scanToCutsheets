@@ -1,0 +1,115 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/sp/v2/list-formatting.schema.json",
+  "listName": "Computer Asset Scans",
+  "description": "Tracks computer asset barcodes scanned via the Power Apps scanner",
+  "template": 100,
+  "enableVersioning": true,
+  "columns": [
+    {
+      "internalName": "Title",
+      "displayName": "Title",
+      "type": "Text",
+      "required": false,
+      "description": "Auto-generated title (Scan: [barcode] (date))",
+      "maxLength": 255,
+      "hidden": false
+    },
+    {
+      "internalName": "BarcodeValue",
+      "displayName": "Barcode Value",
+      "type": "Text",
+      "required": true,
+      "description": "The scanned or manually entered barcode value",
+      "maxLength": 128,
+      "indexed": true
+    },
+    {
+      "internalName": "ScannedBy",
+      "displayName": "Scanned By",
+      "type": "Person",
+      "required": true,
+      "description": "User who performed the scan (auto-populated)",
+      "selectionMode": "PeopleOnly",
+      "allowMultiple": false
+    },
+    {
+      "internalName": "ScannedDate",
+      "displayName": "Scanned Date",
+      "type": "DateTime",
+      "required": true,
+      "description": "When the scan was performed (auto-populated)",
+      "dateFormat": "DateTime",
+      "indexed": true
+    },
+    {
+      "internalName": "Location",
+      "displayName": "Location",
+      "type": "Text",
+      "required": false,
+      "description": "Optional location where the asset was scanned",
+      "maxLength": 255
+    },
+    {
+      "internalName": "Notes",
+      "displayName": "Notes",
+      "type": "Note",
+      "required": false,
+      "description": "Optional notes about the scan",
+      "numberOfLines": 6,
+      "richText": false,
+      "appendOnly": false
+    }
+  ],
+  "views": [
+    {
+      "name": "All Scans",
+      "default": true,
+      "columns": ["BarcodeValue", "ScannedBy", "ScannedDate", "Location"],
+      "sortBy": [
+        {
+          "column": "ScannedDate",
+          "ascending": false
+        }
+      ]
+    },
+    {
+      "name": "Today's Scans",
+      "default": false,
+      "columns": ["BarcodeValue", "ScannedBy", "ScannedDate", "Location"],
+      "filter": "[ScannedDate] >= [Today]",
+      "sortBy": [
+        {
+          "column": "ScannedDate",
+          "ascending": false
+        }
+      ]
+    },
+    {
+      "name": "My Scans",
+      "default": false,
+      "columns": ["BarcodeValue", "ScannedDate", "Location", "Notes"],
+      "filter": "[ScannedBy] = [Me]",
+      "sortBy": [
+        {
+          "column": "ScannedDate",
+          "ascending": false
+        }
+      ]
+    }
+  ],
+  "indexes": [
+    {
+      "columns": ["BarcodeValue"]
+    },
+    {
+      "columns": ["ScannedDate"]
+    },
+    {
+      "columns": ["ScannedBy", "ScannedDate"]
+    }
+  ],
+  "permissions": {
+    "inheritFromSite": true,
+    "notes": "Users need Contribute permission to add scans. List inherits from parent site."
+  }
+}

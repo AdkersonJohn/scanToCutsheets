@@ -1,0 +1,48 @@
+# Dependencies
+node_modules/
+
+# Test results and artifacts
+test-results/
+coverage/
+playwright-report/
+
+# Authentication state (contains session tokens)
+.auth/
+
+# Environment files with secrets
+.env
+.env.local
+.env.*.local
+
+# Build output
+dist/
+
+# Screenshots and recordings (should not be committed)
+*.png
+*.jpeg
+*.jpg
+*.mp4
+*.webm
+
+# IDE and editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Jest cache
+.jest/
