@@ -360,6 +360,71 @@ Users can access via:
 
 ---
 
+## ⚠️ Known Limitations & Watch Points
+
+Before going live, verify these items to ensure reliable operation:
+
+### 1. Delegation Limit (Critical)
+
+Power Apps has a **2,000 row delegation limit** for SharePoint lookups. If the `FY26 Cut Sheets Part 2` list exceeds 2,000 rows:
+
+- The `LookUp()` function may return false negatives (miss existing records)
+- **Solution:** Index the `Legacy Asset Tag` column in SharePoint:
+  1. Go to List Settings → Indexed columns
+  2. Create new index on `Legacy Asset Tag`
+  3. This allows queries up to **12,000 rows**
+
+**Action required:** Check current row count. If approaching 2,000, index the column immediately.
+
+### 2. Single List Search
+
+This app **only searches `FY26 Cut Sheets Part 2`**. It will NOT find matches in:
+- FY25 Cut Sheets
+- FY24 Cut Sheets
+- Any other historical lists
+
+**If you need to search multiple lists:** Contact John to discuss options (union queries, consolidated list, or multiple lookups).
+
+### 3. Column Name Sensitivity
+
+The lookup depends on the **exact column name**: `Legacy Asset Tag`
+
+If the column is renamed, has extra spaces, or uses a different internal name, the app will break silently (always show green checkmarks).
+
+**Verification:** After connecting to SharePoint, check that the column appears exactly as `Legacy Asset Tag` in the Data panel.
+
+### 4. WiFi Required
+
+The app blocks all functionality when offline. Users must have:
+- Active WiFi or cellular data connection
+- Network access to SharePoint (not blocked by firewall)
+
+The warning overlay appears automatically when connection drops.
+
+### 5. User Permissions
+
+Users need **at minimum Read access** to the SharePoint site `CCHMCRefreshSupport` and the `FY26 Cut Sheets Part 2` list. If a user can't access the list directly in SharePoint, they can't use the app.
+
+### 6. Barcode Format
+
+The scanner uses `BarcodeType.Auto` which handles most formats. Asset tags should scan as plain text (e.g., `EW21-04734`). If barcodes include prefix/suffix characters from the scanner hardware, results may not match.
+
+**Test with real hardware** before deploying to field technicians.
+
+---
+
+## Pre-Deployment Checklist
+
+- [ ] Verified row count in `FY26 Cut Sheets Part 2` (if >2000, index the column)
+- [ ] Confirmed `Legacy Asset Tag` column name matches exactly
+- [ ] Tested with known asset tags: one that exists, one that doesn't
+- [ ] Tested on both iOS and Android devices
+- [ ] Tested WiFi disconnect behavior (overlay appears)
+- [ ] Shared with test user to verify permissions work
+- [ ] Published app and generated distribution link
+
+---
+
 ## Contact
 
 Questions? Contact John Adkerson
