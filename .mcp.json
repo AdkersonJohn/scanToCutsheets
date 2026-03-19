@@ -14,6 +14,16 @@
     "activity-monitor": {
       "command": "node",
       "args": ["/Volumes/bingobango/code/scanToCutsheets/mcp-servers/activity-monitor/index.js"]
+    },
+    "powerplatform-debug": {
+      "command": "node",
+      "args": ["/Volumes/bingobango/code/scanToCutsheets/mcp-servers/powerplatform-debug/index.js"],
+      "env": {
+        "DOTNET_ROOT": "/opt/homebrew/Cellar/dotnet/10.0.105/libexec",
+        "PAC_PATH": "/Users/johnadkerson/.dotnet/tools/pac",
+        "APP_DEBUG_DIR": "/Volumes/bingobango/code/scanToCutsheets/app-debug",
+        "SHAREPOINT_SITE": "https://encoretch.sharepoint.com/sites/CCHMCRefreshSupport"
+      }
     }
   }
 }
