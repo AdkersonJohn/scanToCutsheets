@@ -425,6 +425,176 @@ The scanner uses `BarcodeType.Auto` which handles most formats. Asset tags shoul
 
 ---
 
+## Phase 2: Session List & Excel Submission
+
+This section covers adding batch scanning functionality to collect multiple scans before submitting to Excel.
+
+### Overview
+
+After this update:
+1. GREEN scans automatically show a form popup
+2. User enters Serial #, Department, Location, Model
+3. Items are stored in a session list
+4. User can review/edit items before submission
+5. "Submit All" writes to Excel file: `scanToCutsheetsViableAssetTags.xlsx`
+
+---
+
+### Excel Setup (User Must Do First)
+
+Before configuring the app, create the Excel table:
+
+1. Open SharePoint site: `https://encoretch.sharepoint.com/sites/CCHMCRefreshSupport`
+2. Navigate to **Documents** folder
+3. Create new Excel file: `scanToCutsheetsViableAssetTags.xlsx`
+4. Add headers in Row 1:
+   - A1: `Date Scanned`
+   - B1: `Asset Tag`
+   - C1: `Serial Number`
+   - D1: `Department`
+   - E1: `Location`
+   - F1: `Operator`
+   - G1: `Model`
+5. Select cells A1:G1
+6. Click **Insert** → **Table**
+7. Check "My table has headers"
+8. Click **OK**
+9. Note the table name (should be `Table1`)
+10. Save and close
+
+---
+
+### Update App.OnStart
+
+Replace the existing OnStart formula with:
+
+```powerfx
+// Initialize user
+Set(varCurrentUser, User());
+
+// Scan state variables
+Set(varScannedValue, Blank());
+Set(varMatchFound, Blank());
+Set(varMatchRecord, Blank());
+Set(varIsSearching, false);
+Set(varShowResult, false);
+
+// Session collection (stores items for batch submission)
+ClearCollect(colSessionList, Blank());
+Clear(colSessionList);
+
+// Form popup state
+Set(varShowForm, false);
+Set(varCurrentAssetTag, Blank());
+
+// Edit mode state
+Set(varIsEditing, false);
+Set(varEditIndex, -1);
+
+// Submission state
+Set(varIsSubmitting, false);
+Set(varSubmitSuccess, false);
+Set(varSubmitError, Blank())
+```
+
+---
+
+### Connect Excel Data Source
+
+1. In left panel, click **Data** (cylinder icon)
+2. Click **+ Add data**
+3. Search for **Excel Online (Business)**
+4. Connect to SharePoint site
+5. Navigate to `scanToCutsheetsViableAssetTags.xlsx`
+6. Select **Table1**
+7. Click **Connect**
+
+---
+
+### Update OnScan Formula
+
+Replace the existing brcScanner.OnScan with:
+
+```powerfx
+// Capture scanned value
+Set(varScannedValue, Trim(First(brcScanner.Barcodes).Value));
+Set(varIsSearching, true);
+Set(varShowResult, false);
+Set(varSubmitSuccess, false);
+
+// Check both SharePoint lists for existing cut sheet
+Set(
+    varMatchRecord,
+    Coalesce(
+        LookUp('FY26 Cut Sheets', 'Legacy Asset Tag' = Trim(First(brcScanner.Barcodes).Value)),
+        LookUp('FY26 Cut Sheets Part 2', 'Legacy Asset Tag' = Trim(First(brcScanner.Barcodes).Value))
+    )
+);
+
+Set(varMatchFound, !IsBlank(varMatchRecord));
+Set(varIsSearching, false);
+Set(varShowResult, true);
+
+// AUTO-TRIGGER: If GREEN result (needs cut sheet), show form popup
+If(
+    varShowResult && !varMatchFound,
+    Set(varShowForm, true);
+    Set(varCurrentAssetTag, varScannedValue);
+    Set(varIsEditing, false)
+)
+```
+
+---
+
+### New Controls to Add
+
+See the detailed implementation guide at:
+`src/powerapps/session-list-implementation.md`
+
+**Summary of new controls on Screen1:**
+- Form popup (overlay, container, 4 text inputs, labels, Save/Cancel buttons)
+- Session counter label
+- Review List button
+- Success overlay (shown after Excel submission)
+
+**New Screen2 (Review Screen):**
+- Header with Back button
+- Item count label
+- Gallery showing all session items
+- Edit/Remove buttons per item
+- Submit All button
+
+---
+
+### Testing the Session List Feature
+
+1. **Scan a GREEN asset** → Form popup should appear
+2. **Fill all fields** → Required validation works
+3. **Click "Add to List"** → Item appears in session counter
+4. **Scan more items** → Counter increases
+5. **Click "Review List"** → Navigate to Screen2
+6. **Edit an item** → Returns to form with pre-filled data
+7. **Remove an item** → Item deleted from list
+8. **Submit All** → Writes to Excel, shows success screen
+9. **Check Excel** → All items appear with correct data
+10. **Return to scan** → List is cleared, ready for new session
+
+---
+
+### Excel Column Mapping
+
+| Excel Column | Power Apps Source |
+|--------------|-------------------|
+| Date Scanned | `Now()` (auto) |
+| Asset Tag | From barcode scan |
+| Serial Number | Form input (required) |
+| Department | Form input (required) |
+| Location | Form input (required) |
+| Operator | `User().FullName` (auto) |
+| Model | Form input (required) |
+
+---
+
 ## Contact
 
 Questions? Contact John Adkerson

@@ -1,0 +1,205 @@
+# ************************************************************************************************
+# Warning: YAML source code for Canvas Apps should only be used to review changes made within Power Apps Studio and for minor edits (Preview).
+# Use the maker portal to create and edit your Power Apps.
+#
+# The schema file for Canvas Apps is available at https://go.microsoft.com/fwlink/?linkid=2304907
+#
+# For more information, visit https://go.microsoft.com/fwlink/?linkid=2292623
+# ************************************************************************************************
+Screens:
+  Screen2:
+    Properties:
+      LoadingSpinnerColor: =RGBA(56, 96, 178, 1)
+    Children:
+      # Header
+      - rectHeader2:
+          Control: Rectangle@2.3.0
+          Properties:
+            Fill: =RGBA(0, 137, 209, 1)
+            Height: =80
+            Width: =Parent.Width
+      - lblTitle2:
+          Control: Label@2.5.1
+          Properties:
+            Align: =Align.Center
+            Color: =Color.White
+            Font: =Font.'Open Sans'
+            FontWeight: =FontWeight.Bold
+            Size: =24
+            Text: ="Review Session"
+            Width: =Parent.Width
+            Y: =20
+      - btnBack:
+          Control: Classic/Button@2.2.0
+          Properties:
+            Color: =Color.White
+            Fill: =Transparent
+            Font: =Font.'Open Sans'
+            Height: =40
+            OnSelect: =Navigate(Screen1, ScreenTransition.Fade)
+            Text: ="< Back"
+            Width: =80
+            X: =10
+            Y: =20
+      # Item count
+      - lblItemCount:
+          Control: Label@2.5.1
+          Properties:
+            Align: =Align.Center
+            Font: =Font.'Open Sans'
+            Size: =16
+            Text: =CountRows(colSessionList) & " item(s) ready to submit"
+            Width: =Parent.Width
+            Y: =100
+      # Session list gallery
+      - galSessionList:
+          Control: Gallery@4.0.0
+          Variant: galleryVertical
+          Properties:
+            Items: =colSessionList
+            Height: =Parent.Height - 280
+            Width: =Parent.Width - 20
+            X: =10
+            Y: =140
+            TemplateSize: =100
+            TemplatePadding: =5
+          Children:
+            - rectItemBg:
+                Control: Rectangle@2.3.0
+                Properties:
+                  Fill: =RGBA(249, 250, 251, 1)
+                  Height: =Parent.TemplateHeight - 10
+                  Width: =Parent.TemplateWidth - 10
+                  X: =5
+                  Y: =5
+            - lblGalAssetTag:
+                Control: Label@2.5.1
+                Properties:
+                  Font: =Font.'Open Sans'
+                  FontWeight: =FontWeight.Bold
+                  Size: =16
+                  Text: =ThisItem.AssetTag
+                  Width: =Parent.TemplateWidth - 130
+                  X: =15
+                  Y: =10
+            - lblGalModel:
+                Control: Label@2.5.1
+                Properties:
+                  Color: =RGBA(107, 114, 128, 1)
+                  Font: =Font.'Open Sans'
+                  Size: =14
+                  Text: =ThisItem.Model
+                  Width: =Parent.TemplateWidth - 130
+                  X: =15
+                  Y: =35
+            - lblGalDetails:
+                Control: Label@2.5.1
+                Properties:
+                  Color: =RGBA(156, 163, 175, 1)
+                  Font: =Font.'Open Sans'
+                  Size: =12
+                  Text: =ThisItem.Department & " | " & ThisItem.Location
+                  Width: =Parent.TemplateWidth - 130
+                  X: =15
+                  Y: =60
+            - btnGalEdit:
+                Control: Classic/Button@2.2.0
+                Properties:
+                  Color: =Color.White
+                  Fill: =RGBA(59, 130, 246, 1)
+                  Font: =Font.'Open Sans'
+                  Height: =35
+                  OnSelect: |
+                    =Set(varCurrentAssetTag, ThisItem.AssetTag);
+                     Set(varEditIndex, ThisItem.ID);
+                     Set(varIsEditing, true);
+                     Navigate(Screen1, ScreenTransition.Fade);
+                     Set(varShowForm, true)
+                  Text: ="Edit"
+                  Width: =50
+                  X: =Parent.TemplateWidth - 120
+                  Y: =30
+            - btnGalRemove:
+                Control: Classic/Button@2.2.0
+                Properties:
+                  Color: =Color.White
+                  Fill: =RGBA(239, 68, 68, 1)
+                  Font: =Font.'Open Sans'
+                  FontWeight: =FontWeight.Bold
+                  Height: =35
+                  OnSelect: =Remove(colSessionList, ThisItem)
+                  Text: ="X"
+                  Width: =40
+                  X: =Parent.TemplateWidth - 60
+                  Y: =30
+      # Empty state
+      - lblEmptyState:
+          Control: Label@2.5.1
+          Properties:
+            Align: =Align.Center
+            Color: =RGBA(156, 163, 175, 1)
+            Font: =Font.'Open Sans'
+            Height: =100
+            Size: =16
+            Text: |
+              ="No items in session.
+              Go back and scan some assets!"
+            Visible: =CountRows(colSessionList) = 0
+            Width: =Parent.Width - 40
+            X: =20
+            Y: =300
+      # Submit All button
+      - btnSubmitAll:
+          Control: Classic/Button@2.2.0
+          Properties:
+            Color: =Color.White
+            DisplayMode: =If(varIsSubmitting || CountRows(colSessionList) = 0, DisplayMode.Disabled, DisplayMode.Edit)
+            Fill: =RGBA(16, 185, 129, 1)
+            Font: =Font.'Open Sans'
+            FontWeight: =FontWeight.Bold
+            Height: =55
+            HoverFill: =ColorFade(RGBA(16, 185, 129, 1), -20%)
+            OnSelect: |
+              =Set(varIsSubmitting, true);
+               Set(varSubmitError, Blank());
+
+               // Submit each item to Excel table
+               // NOTE: Replace 'scanToCutsheetsViableAssetTags' with your actual Excel data source name
+               ForAll(
+                   colSessionList As item,
+                   'scanToCutsheetsViableAssetTags'.AddRow(
+                       {
+                           'Date Scanned': Text(item.DateScanned, "yyyy-mm-dd hh:mm:ss"),
+                           'Asset Tag': item.AssetTag,
+                           'Serial Number': item.SerialNumber,
+                           Department: item.Department,
+                           Location: item.Location,
+                           Operator: item.Operator,
+                           Model: item.Model
+                       }
+                   )
+               );
+
+               // Clear collection and show success
+               Clear(colSessionList);
+               Set(varIsSubmitting, false);
+               Set(varSubmitSuccess, true);
+
+               // Navigate back to scan screen
+               Navigate(Screen1, ScreenTransition.Fade)
+            Text: =If(varIsSubmitting, "Submitting...", "Submit All to Excel")
+            Width: =250
+            X: =(Parent.Width - 250) / 2
+            Y: =Parent.Height - 120
+      # Submitting indicator
+      - lblSubmitting:
+          Control: Label@2.5.1
+          Properties:
+            Align: =Align.Center
+            Color: =RGBA(107, 114, 128, 1)
+            Font: =Font.'Open Sans'
+            Size: =14
+            Text: ="Please wait..."
+            Visible: =varIsSubmitting
+            Width: =Parent.Width
+            Y: =Parent.Height - 60
