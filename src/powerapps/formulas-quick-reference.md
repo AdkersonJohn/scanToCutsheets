@@ -257,7 +257,8 @@ ForAll(
             Model: Model,
             Make: Make,
             Nonstandard: Nonstandard,
-            'Device Found': If(DeviceFound, "Yes", "No")
+            'Device Found': If(DeviceFound, "Yes", "No"),
+            'Nonstandard Reason': NonstandardReason
         }
     )
 );
