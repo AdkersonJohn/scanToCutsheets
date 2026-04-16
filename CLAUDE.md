@@ -28,6 +28,8 @@ The year threshold is extracted from characters 3-4 of the asset tag: `Mid(Asset
 | Result | Color | Condition | Meaning |
 |--------|-------|-----------|---------|
 | **NEEDS CUT SHEET** | GREEN | Year ≤ 22 AND not found in SharePoint | Device is eligible for refresh and needs a cut sheet |
+| **NEEDS CUT SHEET (NS)** | GREEN + orange banner | GREEN AND model frequency < 50 in fleet | Eligible but nonstandard device — verify with team lead |
+| **NEEDS CUT SHEET (?)** | GREEN + orange banner | GREEN AND not in RefreshAssetInventory | Eligible but device not in inventory — verify asset tag |
 | **HAS CUT SHEET** | RED | Found in SharePoint | Device already has a cut sheet on file |
 | **TOO NEW** | YELLOW | Year > 22 | Device is too new for the 4-year refresh cycle |
 
@@ -186,6 +188,7 @@ circleTooNew (YELLOW):  varShowResult && varDeviceTooNew && !varShowForm && !var
 Form Popup:             varShowForm
 Success Overlay:        varSubmitSuccess
 Add to Session button:  varShowResult && !varMatchFound && !varDeviceTooNew && !varShowForm && !varSubmitSuccess
+Warning Banner (NS):    varShowResult && !varMatchFound && !varDeviceTooNew && varNonstandardStatus <> "No" && varNonstandardStatus <> "" && !varShowForm && !varSubmitSuccess
 ```
 
 ---
@@ -214,6 +217,10 @@ Add to Session button:  varShowResult && !varMatchFound && !varDeviceTooNew && !
 | `varSubmitSuccess` | Boolean | Shows success overlay after submission |
 | `varDeviceTooNew` | Boolean | True when asset tag year > 22 (device too new for refresh) |
 | `varAssetYear` | Number | Extracted year from asset tag (e.g., 22 from EW22-01322) |
+| `varDeviceRecord` | Record | Result from RefreshAssetInventory lookup |
+| `varDeviceFound` | Boolean | Whether asset tag exists in inventory |
+| `varNonstandardStatus` | Text | "Yes" / "No" / "Unknown" — nonstandard classification |
+| `colStandardModels` | Collection | Loaded at OnStart from StandardModels SharePoint list (~80 rows) |
 
 ### Excel Output File
 - **File:** `scanToCutsheetsViableAssetTags.xlsx`
@@ -237,6 +244,36 @@ Add to Session button:  varShowResult && !varMatchFound && !varDeviceTooNew && !
 |------|------|---------------|
 | FY26 Cut Sheets | https://encoretch.sharepoint.com/sites/CCHMCRefreshSupport | Legacy Asset Tag |
 | FY26 Cut Sheets Part 2 | https://encoretch.sharepoint.com/sites/CCHMCRefreshSupport | Legacy Asset Tag |
+| RefreshAssetInventory | https://encoretch.sharepoint.com/sites/CCHMCRefreshSupport | DeviceName (indexed) |
+| StandardModels | https://encoretch.sharepoint.com/sites/CCHMCRefreshSupport | Make, Model |
+
+---
+
+## Debugging Rules
+
+**IMPORTANT: Always use Power Platform CLI and MCP tools for debugging Power Apps issues.**
+
+When debugging any Power Apps issue:
+1. **First**, download the latest app source:
+   ```bash
+   export DOTNET_ROOT="/opt/homebrew/opt/dotnet/libexec"
+   export PATH="$PATH:$HOME/.dotnet/tools"
+   pac canvas download --name "Asset Tag Scanner" -d ./app-debug --overwrite
+   ```
+
+2. **Then**, use MCP tools to analyze:
+   - `analyze_app_formulas` - Check OnScan and behavior formulas
+   - `search_app_source` - Find specific patterns or variables
+   - `get_app_check_results` - Get static analysis warnings
+   - `explain_visibility_logic` - Understand UI state conditions
+   - `list_app_variables` - See all variables and their purposes
+
+3. **Read source files directly** from `app-debug/Src/` to inspect:
+   - Control positions (X, Y, Width, Height)
+   - Visibility formulas
+   - OnSelect/OnScan formulas
+
+Never guess at Power Apps issues - always download and analyze the actual source.
 
 ---
 

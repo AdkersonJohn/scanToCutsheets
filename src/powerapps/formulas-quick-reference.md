@@ -32,7 +32,15 @@ Set(varEditIndex, -1);
 // Submission state
 Set(varIsSubmitting, false);
 Set(varSubmitSuccess, false);
-Set(varSubmitError, Blank())
+Set(varSubmitError, Blank());
+
+// NEW: Nonstandard device detection variables
+Set(varDeviceRecord, Blank());
+Set(varDeviceFound, false);
+Set(varNonstandardStatus, "");
+
+// NEW: Load standard models reference (~80 rows)
+ClearCollect(colStandardModels, StandardModels)
 ```
 
 ---
@@ -45,27 +53,56 @@ Set(varScannedValue, Trim(First(brcScanner.Barcodes).Value));
 Set(varIsSearching, true);
 Set(varShowResult, false);
 Set(varSubmitSuccess, false);
+Set(varShowForm, false);
 
-// Check both SharePoint lists for existing cut sheet
-Set(
-    varMatchRecord,
-    Coalesce(
-        LookUp('FY26 Cut Sheets', 'Legacy Asset Tag' = Trim(First(brcScanner.Barcodes).Value)),
-        LookUp('FY26 Cut Sheets Part 2', 'Legacy Asset Tag' = Trim(First(brcScanner.Barcodes).Value))
-    )
+// Extract year from asset tag (characters 3-4, e.g., "23" from "EW23-00001")
+Set(varAssetYear, Value(Mid(varScannedValue, 3, 2)));
+
+// Check if device is too new for 4-year refresh cycle (year > 22)
+Set(varDeviceTooNew, varAssetYear > 22 || IsBlank(varAssetYear));
+
+// Only check SharePoint if device is old enough
+If(
+    !varDeviceTooNew,
+    Set(
+        varMatchRecord,
+        Coalesce(
+            LookUp('FY26 Cut Sheets', 'Legacy Asset Tag' = Trim(varScannedValue)),
+            LookUp('FY26 Cut Sheets Part 2', 'Legacy Asset Tag' = Trim(varScannedValue))
+        )
+    ),
+    Set(varMatchRecord, Blank())
 );
 
 Set(varMatchFound, !IsBlank(varMatchRecord));
-Set(varIsSearching, false);
-Set(varShowResult, true);
 
-// AUTO-TRIGGER: If GREEN result (needs cut sheet), show form popup
+// NEW: Nonstandard device check (only for GREEN results)
 If(
-    varShowResult && !varMatchFound,
-    Set(varShowForm, true);
-    Set(varCurrentAssetTag, varScannedValue);
-    Set(varIsEditing, false)
-)
+    !varMatchFound && !varDeviceTooNew,
+
+    // Lookup device in inventory
+    Set(varDeviceRecord,
+        LookUp(RefreshAssetInventory, DeviceName = varScannedValue));
+    Set(varDeviceFound, !IsBlank(varDeviceRecord));
+
+    // Determine nonstandard status
+    Set(varNonstandardStatus,
+        If(
+            !varDeviceFound, "Unknown",
+            IsBlank(LookUp(colStandardModels,
+                Make = varDeviceRecord.Make && Model = varDeviceRecord.Model)),
+            "Yes",
+            "No"
+        )
+    ),
+
+    // Not a GREEN result — clear nonstandard state
+    Set(varDeviceFound, false);
+    Set(varNonstandardStatus, "")
+);
+
+Set(varIsSearching, false);
+Set(varShowResult, true)
 ```
 
 ---
@@ -74,18 +111,11 @@ If(
 
 ```powerfx
 If(
-    // Validate all fields
-    IsBlank(txtSerialNumber.Text) ||
-    IsBlank(txtDepartment.Text) ||
-    IsBlank(txtLocation.Text) ||
-    IsBlank(txtModel.Text),
-
+    IsBlank(txtSerialNumber.Text) || IsBlank(txtDepartment.Text) || IsBlank(txtLocation.Text) || IsBlank(txtModel.Text),
     Notify("All fields are required", NotificationType.Error),
 
-    // Check if editing existing or adding new
     If(
         varIsEditing,
-        // UPDATE existing item
         UpdateIf(
             colSessionList,
             ID = varEditIndex,
@@ -93,10 +123,12 @@ If(
                 SerialNumber: txtSerialNumber.Text,
                 Department: txtDepartment.Text,
                 Location: txtLocation.Text,
-                Model: txtModel.Text
+                Model: txtModel.Text,
+                Make: If(varDeviceFound, varDeviceRecord.Make, ""),
+                Nonstandard: varNonstandardStatus,
+                DeviceFound: varDeviceFound
             }
         ),
-        // ADD new item
         Collect(
             colSessionList,
             {
@@ -107,12 +139,14 @@ If(
                 Location: txtLocation.Text,
                 Model: txtModel.Text,
                 DateScanned: Now(),
-                Operator: User().FullName
+                Operator: User().FullName,
+                Make: If(varDeviceFound, varDeviceRecord.Make, ""),
+                Nonstandard: varNonstandardStatus,
+                DeviceFound: varDeviceFound
             }
         )
     );
 
-    // Clear form and close
     Reset(txtSerialNumber);
     Reset(txtDepartment);
     Reset(txtLocation);
@@ -177,30 +211,28 @@ Remove(colSessionList, ThisItem)
 
 ```powerfx
 Set(varIsSubmitting, true);
-Set(varSubmitError, Blank());
-
-// Submit each item to Excel table
 ForAll(
-    colSessionList As item,
-    'scanToCutsheetsViableAssetTags'.AddRow(
+    colSessionList,
+    Patch(
+        Table1,
+        Defaults(Table1),
         {
-            'Date Scanned': Text(item.DateScanned, "yyyy-mm-dd hh:mm:ss"),
-            'Asset Tag': item.AssetTag,
-            'Serial Number': item.SerialNumber,
-            Department: item.Department,
-            Location: item.Location,
-            Operator: item.Operator,
-            Model: item.Model
+            'Date Scanned': Text(Now(), "yyyy-mm-dd hh:mm:ss"),
+            'Asset Tag': AssetTag,
+            'Serial Number': SerialNumber,
+            Department: Department,
+            Location: Location,
+            Operator: User().FullName,
+            Model: Model,
+            Make: Make,
+            Nonstandard: Nonstandard,
+            'Device Found': If(DeviceFound, "Yes", "No")
         }
     )
 );
-
-// Clear collection and show success
 Clear(colSessionList);
 Set(varIsSubmitting, false);
 Set(varSubmitSuccess, true);
-
-// Navigate back to scan screen
 Navigate(Screen1, ScreenTransition.Fade)
 ```
 
@@ -244,7 +276,11 @@ If(varIsEditing, LookUp(colSessionList, ID = varEditIndex).Location, "")
 
 **txtModel.Default:**
 ```powerfx
-If(varIsEditing, LookUp(colSessionList, ID = varEditIndex).Model, "")
+If(
+    varIsEditing,
+    LookUp(colSessionList, ID = varEditIndex).Model,
+    If(varDeviceFound, varDeviceRecord.Model, "")
+)
 ```
 
 ---
@@ -263,6 +299,7 @@ If(varIsEditing, LookUp(colSessionList, ID = varEditIndex).Model, "")
 | Empty state (Screen2) | `CountRows(colSessionList) = 0` |
 | Instructions | `!varShowResult && !varIsSearching && Connection.Connected && !varSubmitSuccess` |
 | WiFi overlay | `!Connection.Connected` |
+| Warning Banner (NS) | `varShowResult && !varMatchFound && !varDeviceTooNew && varNonstandardStatus <> "No" && varNonstandardStatus <> "" && !varShowForm && !varSubmitSuccess` |
 
 ---
 
@@ -278,6 +315,9 @@ If(varIsEditing, LookUp(colSessionList, ID = varEditIndex).Model, "")
 | Model | Text | Form input |
 | DateScanned | DateTime | Now() |
 | Operator | Text | User().FullName |
+| Make | Text | RefreshAssetInventory lookup (blank if unknown) |
+| Nonstandard | Text | "Yes" / "No" / "Unknown" |
+| DeviceFound | Boolean | true if found in RefreshAssetInventory |
 
 ---
 
