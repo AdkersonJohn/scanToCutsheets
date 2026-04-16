@@ -53,27 +53,56 @@ Set(varScannedValue, Trim(First(brcScanner.Barcodes).Value));
 Set(varIsSearching, true);
 Set(varShowResult, false);
 Set(varSubmitSuccess, false);
+Set(varShowForm, false);
 
-// Check both SharePoint lists for existing cut sheet
-Set(
-    varMatchRecord,
-    Coalesce(
-        LookUp('FY26 Cut Sheets', 'Legacy Asset Tag' = Trim(First(brcScanner.Barcodes).Value)),
-        LookUp('FY26 Cut Sheets Part 2', 'Legacy Asset Tag' = Trim(First(brcScanner.Barcodes).Value))
-    )
+// Extract year from asset tag (characters 3-4, e.g., "23" from "EW23-00001")
+Set(varAssetYear, Value(Mid(varScannedValue, 3, 2)));
+
+// Check if device is too new for 4-year refresh cycle (year > 22)
+Set(varDeviceTooNew, varAssetYear > 22 || IsBlank(varAssetYear));
+
+// Only check SharePoint if device is old enough
+If(
+    !varDeviceTooNew,
+    Set(
+        varMatchRecord,
+        Coalesce(
+            LookUp('FY26 Cut Sheets', 'Legacy Asset Tag' = Trim(varScannedValue)),
+            LookUp('FY26 Cut Sheets Part 2', 'Legacy Asset Tag' = Trim(varScannedValue))
+        )
+    ),
+    Set(varMatchRecord, Blank())
 );
 
 Set(varMatchFound, !IsBlank(varMatchRecord));
-Set(varIsSearching, false);
-Set(varShowResult, true);
 
-// AUTO-TRIGGER: If GREEN result (needs cut sheet), show form popup
+// NEW: Nonstandard device check (only for GREEN results)
 If(
-    varShowResult && !varMatchFound,
-    Set(varShowForm, true);
-    Set(varCurrentAssetTag, varScannedValue);
-    Set(varIsEditing, false)
-)
+    !varMatchFound && !varDeviceTooNew,
+
+    // Lookup device in inventory
+    Set(varDeviceRecord,
+        LookUp(RefreshAssetInventory, DeviceName = varScannedValue));
+    Set(varDeviceFound, !IsBlank(varDeviceRecord));
+
+    // Determine nonstandard status
+    Set(varNonstandardStatus,
+        If(
+            !varDeviceFound, "Unknown",
+            IsBlank(LookUp(colStandardModels,
+                Make = varDeviceRecord.Make && Model = varDeviceRecord.Model)),
+            "Yes",
+            "No"
+        )
+    ),
+
+    // Not a GREEN result — clear nonstandard state
+    Set(varDeviceFound, false);
+    Set(varNonstandardStatus, "")
+);
+
+Set(varIsSearching, false);
+Set(varShowResult, true)
 ```
 
 ---
