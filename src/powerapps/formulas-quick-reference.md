@@ -281,7 +281,11 @@ If(varIsEditing, LookUp(colSessionList, ID = varEditIndex).Location, "")
 
 **txtModel.Default:**
 ```powerfx
-If(varIsEditing, LookUp(colSessionList, ID = varEditIndex).Model, "")
+If(
+    varIsEditing,
+    LookUp(colSessionList, ID = varEditIndex).Model,
+    If(varDeviceFound, varDeviceRecord.Model, "")
+)
 ```
 
 ---
