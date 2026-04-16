@@ -330,7 +330,7 @@ Screens:
           Properties:
             BorderColor: =RGBA(0, 18, 107, 1)
             Fill: =Color.White
-            Height: =520
+            Height: =560
             Visible: =varShowForm
             Width: =Parent.Width - 40
             X: =20
@@ -364,6 +364,20 @@ Screens:
             Width: =Parent.Width - 80
             X: =40
             Y: =210
+      - lblFormMake:
+          Control: Label@2.5.1
+          Properties:
+            BorderColor: =RGBA(0, 18, 107, 1)
+            Color: =If(varNonstandardStatus = "No", RGBA(107, 114, 128, 1), RGBA(180, 100, 0, 1))
+            Font: =Font.'Open Sans'
+            FontWeight: =If(varNonstandardStatus <> "No" && varNonstandardStatus <> "", FontWeight.Semibold, FontWeight.Normal)
+            Height: =30
+            Size: =12
+            Text: =If(varDeviceFound, "Make: " & varDeviceRecord.Make & " | Model: " & varDeviceRecord.Model, "Device not in inventory")
+            Visible: =varShowForm
+            Width: =Parent.Width - 80
+            X: =40
+            Y: =240
       - lblSerialNumber:
           Control: Label@2.5.1
           Properties:
@@ -374,7 +388,7 @@ Screens:
             Visible: =varShowForm
             Width: =Parent.Width - 80
             X: =40
-            Y: =250
+            Y: =280
       - txtSerialNumber:
           Control: Classic/TextInput@2.3.2
           Properties:
@@ -388,7 +402,7 @@ Screens:
             Visible: =varShowForm
             Width: =Parent.Width - 80
             X: =40
-            Y: =275
+            Y: =305
       - lblDepartment:
           Control: Label@2.5.1
           Properties:
@@ -399,7 +413,7 @@ Screens:
             Visible: =varShowForm
             Width: =Parent.Width - 80
             X: =40
-            Y: =330
+            Y: =360
       - txtDepartment:
           Control: Classic/TextInput@2.3.2
           Properties:
@@ -413,7 +427,7 @@ Screens:
             Visible: =varShowForm
             Width: =Parent.Width - 80
             X: =40
-            Y: =355
+            Y: =385
       - lblLocation:
           Control: Label@2.5.1
           Properties:
@@ -422,7 +436,7 @@ Screens:
             Text: ="Location *"
             Visible: =varShowForm
             X: =40
-            Y: =410
+            Y: =440
       - txtLocation:
           Control: Classic/TextInput@2.3.2
           Properties:
@@ -436,7 +450,7 @@ Screens:
             Visible: =varShowForm
             Width: =Parent.Width - 80
             X: =40
-            Y: =435
+            Y: =465
       - lblModel:
           Control: Label@2.5.1
           Properties:
@@ -447,12 +461,12 @@ Screens:
             Visible: =varShowForm
             Width: =Parent.Width - 80
             X: =40
-            Y: =490
+            Y: =520
       - txtModel:
           Control: Classic/TextInput@2.3.2
           Properties:
             BorderColor: =RGBA(0, 18, 107, 1)
-            Default: =""
+            Default: =If(varIsEditing, LookUp(colSessionList, ID = varEditIndex).Model, If(varDeviceFound, varDeviceRecord.Model, ""))
             Font: =Font.'Open Sans'
             Height: =40
             HintText: ="Enter model"
@@ -461,7 +475,7 @@ Screens:
             Visible: =varShowForm
             Width: =Parent.Width - 80
             X: =40
-            Y: =515
+            Y: =545
       - btnSaveItem:
           Control: Classic/Button@2.2.0
           Properties:
@@ -483,7 +497,7 @@ Screens:
             Visible: =varShowForm
             Width: =140
             X: =40
-            Y: =580
+            Y: =610
       - btnCancelForm:
           Control: Classic/Button@2.2.0
           Properties:
@@ -504,7 +518,7 @@ Screens:
             Visible: =varShowForm
             Width: =100
             X: =Parent.Width - 140
-            Y: =580
+            Y: =610
       - lblSessionCount:
           Control: Label@2.5.1
           Properties:
