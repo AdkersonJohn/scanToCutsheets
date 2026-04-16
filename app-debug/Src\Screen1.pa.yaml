@@ -85,6 +85,40 @@ Screens:
             Visible: =varShowResult && !varMatchFound && !varDeviceTooNew && !varShowForm && !varSubmitSuccess
             Width: =Parent.Width
             Y: =615
+      - rectNSBanner:
+          Control: Rectangle@2.3.0
+          Properties:
+            Fill: =RGBA(255, 165, 0, 0.15)
+            BorderColor: =RGBA(255, 140, 0, 1)
+            BorderThickness: =0
+            Height: =40
+            Visible: =varShowResult && !varMatchFound && !varDeviceTooNew && varNonstandardStatus <> "No" && varNonstandardStatus <> "" && !varShowForm && !varSubmitSuccess
+            Width: =Parent.Width - 80
+            X: =40
+            Y: =650
+      - rectNSBorderLeft:
+          Control: Rectangle@2.3.0
+          Properties:
+            Fill: =RGBA(255, 140, 0, 1)
+            Height: =40
+            Visible: =rectNSBanner.Visible
+            Width: =3
+            X: =40
+            Y: =650
+      - lblNSWarning:
+          Control: Label@2.5.1
+          Properties:
+            Align: =Align.Left
+            Color: =RGBA(180, 100, 0, 1)
+            Font: =Font.'Open Sans'
+            Height: =40
+            Size: =12
+            Text: =If(varNonstandardStatus = "Unknown", "⚠ Device not in inventory — verify asset tag", "⚠ Nonstandard: " & varDeviceRecord.Make & " " & varDeviceRecord.Model)
+            VerticalAlign: =VerticalAlign.Middle
+            Visible: =rectNSBanner.Visible
+            Width: =Parent.Width - 100
+            X: =50
+            Y: =650
       - circleFailure:
           Control: Circle@2.3.0
           Properties:
