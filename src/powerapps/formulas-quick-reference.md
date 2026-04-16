@@ -32,7 +32,15 @@ Set(varEditIndex, -1);
 // Submission state
 Set(varIsSubmitting, false);
 Set(varSubmitSuccess, false);
-Set(varSubmitError, Blank())
+Set(varSubmitError, Blank());
+
+// NEW: Nonstandard device detection variables
+Set(varDeviceRecord, Blank());
+Set(varDeviceFound, false);
+Set(varNonstandardStatus, "");
+
+// NEW: Load standard models reference (~80 rows)
+ClearCollect(colStandardModels, StandardModels)
 ```
 
 ---
