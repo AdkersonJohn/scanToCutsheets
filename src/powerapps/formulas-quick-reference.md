@@ -34,13 +34,12 @@ Set(varIsSubmitting, false);
 Set(varSubmitSuccess, false);
 Set(varSubmitError, Blank());
 
-// NEW: Nonstandard device detection variables
+// Nonstandard device detection variables
 Set(varDeviceRecord, Blank());
 Set(varDeviceFound, false);
 Set(varNonstandardStatus, "");
-
-// NEW: Load standard models reference (~80 rows)
-ClearCollect(colStandardModels, StandardModels)
+Set(varNonstandardReason, "");
+Set(varModelIsStandard, false)
 ```
 
 ---
@@ -76,7 +75,7 @@ If(
 
 Set(varMatchFound, !IsBlank(varMatchRecord));
 
-// NEW: Nonstandard device check (only for GREEN results)
+// Nonstandard device check (only for GREEN results)
 If(
     !varMatchFound && !varDeviceTooNew,
 
@@ -85,20 +84,50 @@ If(
         LookUp(RefreshAssetInventory, DeviceName = varScannedValue));
     Set(varDeviceFound, !IsBlank(varDeviceRecord));
 
-    // Determine nonstandard status
-    Set(varNonstandardStatus,
+    If(
+        !varDeviceFound,
+        // Not in inventory
+        Set(varNonstandardStatus, "Unknown");
+        Set(varNonstandardReason, ""),
+
+        // Check model family
+        Set(varModelIsStandard,
+            "LATITUDE 55" in Upper(varDeviceRecord.Model) ||
+            "LATITUDE 74" in Upper(varDeviceRecord.Model) ||
+            "OPTIPLEX MICRO" in Upper(varDeviceRecord.Model) ||
+            "DELL PRO 14 PLUS" in Upper(varDeviceRecord.Model) ||
+            "DELL PRO MICRO PLUS" in Upper(varDeviceRecord.Model) ||
+            ("DELL PRO 16" in Upper(varDeviceRecord.Model) &&
+             !("PLUS" in Upper(varDeviceRecord.Model)))
+        );
+
         If(
-            !varDeviceFound, "Unknown",
-            IsBlank(LookUp(colStandardModels,
-                Make = varDeviceRecord.Make && Model = varDeviceRecord.Model)),
-            "Yes",
-            "No"
+            !varModelIsStandard,
+            // Model doesn't match any standard family
+            Set(varNonstandardStatus, "Yes");
+            Set(varNonstandardReason, "model"),
+
+            // Model matches — check specs
+            If(
+                (varDeviceRecord.RAM >= 15 && varDeviceRecord.RAM <= 16) &&
+                ("I5" in Upper(varDeviceRecord.CPU) || "ULTRA 5" in Upper(varDeviceRecord.CPU)) &&
+                (varDeviceRecord.DiskSize >= 230 && varDeviceRecord.DiskSize <= 260),
+
+                // Fully standard
+                Set(varNonstandardStatus, "No");
+                Set(varNonstandardReason, ""),
+
+                // Standard model but wrong specs
+                Set(varNonstandardStatus, "Yes");
+                Set(varNonstandardReason, "specs")
+            )
         )
     ),
 
-    // Not a GREEN result — clear nonstandard state
+    // Not a GREEN result
     Set(varDeviceFound, false);
-    Set(varNonstandardStatus, "")
+    Set(varNonstandardStatus, "");
+    Set(varNonstandardReason, "")
 );
 
 Set(varIsSearching, false);
@@ -126,7 +155,8 @@ If(
                 Model: txtModel.Text,
                 Make: If(varDeviceFound, varDeviceRecord.Make, ""),
                 Nonstandard: varNonstandardStatus,
-                DeviceFound: varDeviceFound
+                DeviceFound: varDeviceFound,
+                NonstandardReason: varNonstandardReason
             }
         ),
         Collect(
@@ -142,7 +172,8 @@ If(
                 Operator: User().FullName,
                 Make: If(varDeviceFound, varDeviceRecord.Make, ""),
                 Nonstandard: varNonstandardStatus,
-                DeviceFound: varDeviceFound
+                DeviceFound: varDeviceFound,
+                NonstandardReason: varNonstandardReason
             }
         )
     );
@@ -226,7 +257,8 @@ ForAll(
             Model: Model,
             Make: Make,
             Nonstandard: Nonstandard,
-            'Device Found': If(DeviceFound, "Yes", "No")
+            'Device Found': If(DeviceFound, "Yes", "No"),
+            'Nonstandard Reason': NonstandardReason
         }
     )
 );
@@ -318,6 +350,7 @@ If(
 | Make | Text | RefreshAssetInventory lookup (blank if unknown) |
 | Nonstandard | Text | "Yes" / "No" / "Unknown" |
 | DeviceFound | Boolean | true if found in RefreshAssetInventory |
+| NonstandardReason | Text | "model" / "specs" / "" |
 
 ---
 

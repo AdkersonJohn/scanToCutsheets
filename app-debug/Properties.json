@@ -3,7 +3,7 @@
   "Name": "Asset Tag Scanner",
   "Id": "e3dd3d7c-cc76-4f9f-9710-b97b9dd891b8",
   "FileID": "e3dd3d7c-cc76-4f9f-9710-b97b9dd891b8",
-  "LocalConnectionReferences": "{\"e5f4cd4b-fd7c-4727-b6a4-923b2c483997\":{\"id\":\"e5f4cd4b-fd7c-4727-b6a4-923b2c483997\",\"connectionInstanceId\":\"/providers/microsoft.powerapps/apis/shared_sharepointonline/connections/bbc61d57ded84afc8f2dbd98d23499c1\",\"dataSources\":[\"FY26 Cut Sheets\",\"FY26 Cut Sheets Part 2\"],\"datasets\":{\"https://encoretch.sharepoint.com/sites/CCHMCRefreshSupport\":{\"dataSources\":{\"FY26 Cut Sheets\":{\"tableName\":\"20427f36-04a8-4682-9569-9d9a734e30ce\"},\"FY26 Cut Sheets Part 2\":{\"tableName\":\"46c4cde0-9277-483e-b7df-de694345447d\"}}}},\"dependencies\":{},\"dependents\":[],\"connectionRef\":{\"id\":\"/providers/microsoft.powerapps/apis/shared_sharepointonline\",\"displayName\":\"SharePoint\",\"apiTier\":\"Standard\",\"iconUri\":\"https://conn-afd-prod-endpoint-bmc9bqahasf3grgk.b01.azurefd.net/releases/v1.0.1769/1.0.1769.4361/sharepointonline/icon.png\",\"parameterHints\":{},\"parameterHintsV2\":{}},\"appActions\":[\"providers/PowerPlatform.Governance/Operations/Read\"]}}",
+  "LocalConnectionReferences": "{\"e5f4cd4b-fd7c-4727-b6a4-923b2c483997\":{\"id\":\"e5f4cd4b-fd7c-4727-b6a4-923b2c483997\",\"connectionInstanceId\":\"/providers/microsoft.powerapps/apis/shared_sharepointonline/connections/bbc61d57ded84afc8f2dbd98d23499c1\",\"dataSources\":[\"FY26 Cut Sheets\",\"FY26 Cut Sheets Part 2\"],\"datasets\":{\"https://encoretch.sharepoint.com/sites/CCHMCRefreshSupport\":{\"dataSources\":{\"FY26 Cut Sheets\":{\"tableName\":\"20427f36-04a8-4682-9569-9d9a734e30ce\"},\"FY26 Cut Sheets Part 2\":{\"tableName\":\"46c4cde0-9277-483e-b7df-de694345447d\"}}}},\"dependencies\":{},\"dependents\":[],\"connectionRef\":{\"id\":\"/providers/microsoft.powerapps/apis/shared_sharepointonline\",\"displayName\":\"SharePoint\",\"apiTier\":\"Standard\",\"iconUri\":\"https://conn-afd-prod-endpoint-bmc9bqahasf3grgk.b01.azurefd.net/releases/v1.0.1769/1.0.1769.4361/sharepointonline/icon.png\",\"parameterHints\":{},\"parameterHintsV2\":{}},\"appActions\":[\"providers/PowerPlatform.Governance/Operations/Read\"]},\"00c2c783-79da-40ee-ba6f-02aa146b4361\":{\"id\":\"00c2c783-79da-40ee-ba6f-02aa146b4361\",\"connectionInstanceId\":\"/providers/microsoft.powerapps/apis/shared_excelonlinebusiness/connections/8426580a069740629f01c5cab80fd8f4\",\"dataSources\":[\"Table1\"],\"datasets\":{\"sites%252Fencoretch.sharepoint.com%252Cb72ca6e0-9443-4472-b36b-03f071e2ee1b%252C83e6be1a-d7ac-4d38-ac02-5e5a8c97f699,b%25214KYst0OUckSzawPwceLuGxq-5oOs1zhNrAJeWoyX9plV8ifewZ0eRbDR0UCAejVR,01D63AWFWYF6NJOJYTRRFI5WXAULGISKWU\":{\"dataSources\":{\"Table1\":{\"tableName\":\"{50152CCF-4A32-4BB8-942D-14593E04813C}\"}}}},\"dependencies\":{},\"dependents\":[],\"connectionRef\":{\"id\":\"/providers/microsoft.powerapps/apis/shared_excelonlinebusiness\",\"displayName\":\"Excel Online (Business)\",\"apiTier\":\"Standard\",\"iconUri\":\"https://conn-afd-prod-endpoint-bmc9bqahasf3grgk.b01.azurefd.net/releases/v1.0.1797/1.0.1797.4592/excelonlinebusiness/icon.png\",\"parameterHints\":{},\"parameterHintsV2\":{}},\"appActions\":[\"providers/PowerPlatform.Governance/Operations/Read\",\"providers/PowerPlatform.Governance/Operations/Write\"]}}",
   "LocalDatabaseReferences": "",
   "LibraryDependencies": "[]",
   "AppPreviewFlagsMap": {
@@ -113,13 +113,17 @@
   "ConnectionString": "",
   "EnableInstrumentation": false,
   "ControlCount": {
-    "screen": 1,
-    "rectangle": 1,
-    "label": 6,
+    "screen": 2,
+    "rectangle": 7,
+    "label": 27,
     "BarcodeReader": 1,
-    "circle": 2,
-    "icon": 2
+    "text": 4,
+    "icon": 5,
+    "circle": 3,
+    "button": 10,
+    "gallery": 1,
+    "galleryTemplate": 1
   },
-  "DeserializationLoadTime": 0.5364351,
-  "AnalysisLoadTime": 0.2111618
+  "DeserializationLoadTime": 1.3861905,
+  "AnalysisLoadTime": 0.7938774
 }

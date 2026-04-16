@@ -24,6 +24,9 @@ Add-PnPField -List $listName -DisplayName "DeviceName" -InternalName "DeviceName
 Add-PnPField -List $listName -DisplayName "SerialNumber" -InternalName "SerialNumber" -Type Text
 Add-PnPField -List $listName -DisplayName "Make" -InternalName "Make" -Type Text
 Add-PnPField -List $listName -DisplayName "Model" -InternalName "Model" -Type Text
+Add-PnPField -List $listName -DisplayName "RAM" -InternalName "RAM" -Type Number
+Add-PnPField -List $listName -DisplayName "CPU" -InternalName "CPU" -Type Text
+Add-PnPField -List $listName -DisplayName "DiskSize" -InternalName "DiskSize" -Type Number
 
 # Remove default Title column requirement
 Set-PnPField -List $listName -Identity "Title" -Values @{Required=$false; Hidden=$true}
@@ -36,11 +39,18 @@ $field.Update()
 Invoke-PnPQuery
 
 Write-Host ""
-Write-Host "RefreshAssetInventory list created with indexed DeviceName column."
+Write-Host "RefreshAssetInventory list created with 7 columns and indexed DeviceName."
+Write-Host ""
+Write-Host "Columns: DeviceName (indexed), SerialNumber, Make, Model, RAM, CPU, DiskSize"
+Write-Host ""
+Write-Host "IMPORTANT: RAM and DiskSize are stored in GB (not bytes)."
+Write-Host "The Power Automate sync flow must convert bytes to GB during import:"
+Write-Host "  RAM = Total physical memory / 1073741824 (rounded)"
+Write-Host "  DiskSize = Disk 1 size / 1073741824 (rounded)"
 Write-Host ""
 Write-Host "IMPORTANT: SharePoint list view threshold is 5,000 items."
 Write-Host "With ~65k items, you MUST use indexed columns for all queries."
 Write-Host "The DeviceName column has been indexed for delegable LookUp from Power Apps."
 Write-Host ""
 Write-Host "Next step: Set up the Power Automate flow to populate this list"
-Write-Host "from Refresh Asset Data.xlsx (see Task 3 in the implementation plan)."
+Write-Host "from Refresh Asset Data.xlsx (see the sync flow guide)."
