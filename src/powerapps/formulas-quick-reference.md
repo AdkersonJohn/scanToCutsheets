@@ -155,7 +155,8 @@ If(
                 Model: txtModel.Text,
                 Make: If(varDeviceFound, varDeviceRecord.Make, ""),
                 Nonstandard: varNonstandardStatus,
-                DeviceFound: varDeviceFound
+                DeviceFound: varDeviceFound,
+                NonstandardReason: varNonstandardReason
             }
         ),
         Collect(
@@ -171,7 +172,8 @@ If(
                 Operator: User().FullName,
                 Make: If(varDeviceFound, varDeviceRecord.Make, ""),
                 Nonstandard: varNonstandardStatus,
-                DeviceFound: varDeviceFound
+                DeviceFound: varDeviceFound,
+                NonstandardReason: varNonstandardReason
             }
         )
     );
@@ -347,6 +349,7 @@ If(
 | Make | Text | RefreshAssetInventory lookup (blank if unknown) |
 | Nonstandard | Text | "Yes" / "No" / "Unknown" |
 | DeviceFound | Boolean | true if found in RefreshAssetInventory |
+| NonstandardReason | Text | "model" / "specs" / "" |
 
 ---
 
