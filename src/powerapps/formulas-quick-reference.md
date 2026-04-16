@@ -211,30 +211,28 @@ Remove(colSessionList, ThisItem)
 
 ```powerfx
 Set(varIsSubmitting, true);
-Set(varSubmitError, Blank());
-
-// Submit each item to Excel table
 ForAll(
-    colSessionList As item,
-    'scanToCutsheetsViableAssetTags'.AddRow(
+    colSessionList,
+    Patch(
+        Table1,
+        Defaults(Table1),
         {
-            'Date Scanned': Text(item.DateScanned, "yyyy-mm-dd hh:mm:ss"),
-            'Asset Tag': item.AssetTag,
-            'Serial Number': item.SerialNumber,
-            Department: item.Department,
-            Location: item.Location,
-            Operator: item.Operator,
-            Model: item.Model
+            'Date Scanned': Text(Now(), "yyyy-mm-dd hh:mm:ss"),
+            'Asset Tag': AssetTag,
+            'Serial Number': SerialNumber,
+            Department: Department,
+            Location: Location,
+            Operator: User().FullName,
+            Model: Model,
+            Make: Make,
+            Nonstandard: Nonstandard,
+            'Device Found': If(DeviceFound, "Yes", "No")
         }
     )
 );
-
-// Clear collection and show success
 Clear(colSessionList);
 Set(varIsSubmitting, false);
 Set(varSubmitSuccess, true);
-
-// Navigate back to scan screen
 Navigate(Screen1, ScreenTransition.Fade)
 ```
 
