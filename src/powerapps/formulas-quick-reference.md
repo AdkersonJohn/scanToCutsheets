@@ -75,7 +75,7 @@ If(
 
 Set(varMatchFound, !IsBlank(varMatchRecord));
 
-// NEW: Nonstandard device check (only for GREEN results)
+// Nonstandard device check (only for GREEN results)
 If(
     !varMatchFound && !varDeviceTooNew,
 
@@ -84,20 +84,50 @@ If(
         LookUp(RefreshAssetInventory, DeviceName = varScannedValue));
     Set(varDeviceFound, !IsBlank(varDeviceRecord));
 
-    // Determine nonstandard status
-    Set(varNonstandardStatus,
+    If(
+        !varDeviceFound,
+        // Not in inventory
+        Set(varNonstandardStatus, "Unknown");
+        Set(varNonstandardReason, ""),
+
+        // Check model family
+        Set(varModelIsStandard,
+            "LATITUDE 55" in Upper(varDeviceRecord.Model) ||
+            "LATITUDE 74" in Upper(varDeviceRecord.Model) ||
+            "OPTIPLEX MICRO" in Upper(varDeviceRecord.Model) ||
+            "DELL PRO 14 PLUS" in Upper(varDeviceRecord.Model) ||
+            "DELL PRO MICRO PLUS" in Upper(varDeviceRecord.Model) ||
+            ("DELL PRO 16" in Upper(varDeviceRecord.Model) &&
+             !("PLUS" in Upper(varDeviceRecord.Model)))
+        );
+
         If(
-            !varDeviceFound, "Unknown",
-            IsBlank(LookUp(colStandardModels,
-                Make = varDeviceRecord.Make && Model = varDeviceRecord.Model)),
-            "Yes",
-            "No"
+            !varModelIsStandard,
+            // Model doesn't match any standard family
+            Set(varNonstandardStatus, "Yes");
+            Set(varNonstandardReason, "model"),
+
+            // Model matches — check specs
+            If(
+                (varDeviceRecord.RAM >= 15 && varDeviceRecord.RAM <= 16) &&
+                ("I5" in Upper(varDeviceRecord.CPU) || "ULTRA 5" in Upper(varDeviceRecord.CPU)) &&
+                (varDeviceRecord.DiskSize >= 230 && varDeviceRecord.DiskSize <= 260),
+
+                // Fully standard
+                Set(varNonstandardStatus, "No");
+                Set(varNonstandardReason, ""),
+
+                // Standard model but wrong specs
+                Set(varNonstandardStatus, "Yes");
+                Set(varNonstandardReason, "specs")
+            )
         )
     ),
 
-    // Not a GREEN result — clear nonstandard state
+    // Not a GREEN result
     Set(varDeviceFound, false);
-    Set(varNonstandardStatus, "")
+    Set(varNonstandardStatus, "");
+    Set(varNonstandardReason, "")
 );
 
 Set(varIsSearching, false);
