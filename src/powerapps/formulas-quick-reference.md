@@ -299,6 +299,7 @@ If(
 | Empty state (Screen2) | `CountRows(colSessionList) = 0` |
 | Instructions | `!varShowResult && !varIsSearching && Connection.Connected && !varSubmitSuccess` |
 | WiFi overlay | `!Connection.Connected` |
+| Warning Banner (NS) | `varShowResult && !varMatchFound && !varDeviceTooNew && varNonstandardStatus <> "No" && varNonstandardStatus <> "" && !varShowForm && !varSubmitSuccess` |
 
 ---
 
