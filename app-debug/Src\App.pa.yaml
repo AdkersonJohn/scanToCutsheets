@@ -29,6 +29,6 @@ App:
         Set(varDeviceRecord, Blank());
         Set(varDeviceFound, false);
         Set(varNonstandardStatus, "");
-
-        ClearCollect(colStandardModels, StandardModels)
+        Set(varNonstandardReason, "");
+        Set(varModelIsStandard, false)
     Theme: =PowerAppsTheme
