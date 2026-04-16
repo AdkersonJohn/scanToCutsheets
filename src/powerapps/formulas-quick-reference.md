@@ -111,18 +111,11 @@ Set(varShowResult, true)
 
 ```powerfx
 If(
-    // Validate all fields
-    IsBlank(txtSerialNumber.Text) ||
-    IsBlank(txtDepartment.Text) ||
-    IsBlank(txtLocation.Text) ||
-    IsBlank(txtModel.Text),
-
+    IsBlank(txtSerialNumber.Text) || IsBlank(txtDepartment.Text) || IsBlank(txtLocation.Text) || IsBlank(txtModel.Text),
     Notify("All fields are required", NotificationType.Error),
 
-    // Check if editing existing or adding new
     If(
         varIsEditing,
-        // UPDATE existing item
         UpdateIf(
             colSessionList,
             ID = varEditIndex,
@@ -130,10 +123,12 @@ If(
                 SerialNumber: txtSerialNumber.Text,
                 Department: txtDepartment.Text,
                 Location: txtLocation.Text,
-                Model: txtModel.Text
+                Model: txtModel.Text,
+                Make: If(varDeviceFound, varDeviceRecord.Make, ""),
+                Nonstandard: varNonstandardStatus,
+                DeviceFound: varDeviceFound
             }
         ),
-        // ADD new item
         Collect(
             colSessionList,
             {
@@ -144,12 +139,14 @@ If(
                 Location: txtLocation.Text,
                 Model: txtModel.Text,
                 DateScanned: Now(),
-                Operator: User().FullName
+                Operator: User().FullName,
+                Make: If(varDeviceFound, varDeviceRecord.Make, ""),
+                Nonstandard: varNonstandardStatus,
+                DeviceFound: varDeviceFound
             }
         )
     );
 
-    // Clear form and close
     Reset(txtSerialNumber);
     Reset(txtDepartment);
     Reset(txtLocation);
@@ -319,6 +316,9 @@ If(
 | Model | Text | Form input |
 | DateScanned | DateTime | Now() |
 | Operator | Text | User().FullName |
+| Make | Text | RefreshAssetInventory lookup (blank if unknown) |
+| Nonstandard | Text | "Yes" / "No" / "Unknown" |
+| DeviceFound | Boolean | true if found in RefreshAssetInventory |
 
 ---
 
