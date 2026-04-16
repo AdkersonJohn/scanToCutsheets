@@ -1,38 +1,34 @@
 # ************************************************************************************************
 # Warning: YAML source code for Canvas Apps should only be used to review changes made within Power Apps Studio and for minor edits (Preview).
 # Use the maker portal to create and edit your Power Apps.
-#
+# 
 # The schema file for Canvas Apps is available at https://go.microsoft.com/fwlink/?linkid=2304907
-#
+# 
 # For more information, visit https://go.microsoft.com/fwlink/?linkid=2292623
 # ************************************************************************************************
 App:
   Properties:
-    OnStart: |
-      =// Initialize user
-      Set(varCurrentUser, User());
+    OnStart: |-
+      =Set(varCurrentUser, User());                                                                                                                                                                           
+        Set(varScannedValue, Blank());                                                                                                                                                                         
+        Set(varMatchFound, Blank());                                                                                                                                                                           
+        Set(varMatchRecord, Blank());                                                                                                                                                                          
+        Set(varIsSearching, false);                                                                                                                                                                            
+        Set(varShowResult, false);                                                                                                                                                                             
+        Set(varShowForm, false);                                                                                                                                                                               
+        Set(varCurrentAssetTag, "");                                                                                                                                                                      
+        Set(varIsEditing, false);                                                                                                                                                                              
+        Set(varEditIndex, -1);                                                                                                                                                                                 
+        Set(varIsSubmitting, false);                                                                                                                                                                           
+        Set(varSubmitSuccess, false);                                                                                                                                                                         
+        Set(varSubmitError, "");
 
-      // Scan state variables
-      Set(varScannedValue, Blank());
-      Set(varMatchFound, Blank());
-      Set(varMatchRecord, Blank());
-      Set(varIsSearching, false);
-      Set(varShowResult, false);
+        Set(varDeviceTooNew, false);
+        Set(varAssetYear, 0);
 
-      // Session collection (stores items for batch submission)
-      ClearCollect(colSessionList, Blank());
-      Clear(colSessionList);
+        Set(varDeviceRecord, Blank());
+        Set(varDeviceFound, false);
+        Set(varNonstandardStatus, "");
 
-      // Form popup state
-      Set(varShowForm, false);
-      Set(varCurrentAssetTag, Blank());
-
-      // Edit mode state
-      Set(varIsEditing, false);
-      Set(varEditIndex, -1);
-
-      // Submission state
-      Set(varIsSubmitting, false);
-      Set(varSubmitSuccess, false);
-      Set(varSubmitError, Blank())
+        ClearCollect(colStandardModels, StandardModels)
     Theme: =PowerAppsTheme
