@@ -113,7 +113,7 @@ Screens:
             Font: =Font.'Open Sans'
             Height: =40
             Size: =12
-            Text: =If(varNonstandardStatus = "Unknown", "⚠ Device not in inventory — verify asset tag", "⚠ Nonstandard: " & varDeviceRecord.Make & " " & varDeviceRecord.Model)
+            Text: =If(varNonstandardStatus = "Unknown", "⚠ Device not in inventory — verify asset tag", varNonstandardReason = "model", "⚠ Nonstandard model: " & varDeviceRecord.Make & " " & varDeviceRecord.Model, "⚠ Nonstandard specs: " & varDeviceRecord.RAM & " GB RAM, " & varDeviceRecord.CPU & " (expected 16 GB, i5/Ultra 5, 256 GB SSD)")
             VerticalAlign: =VerticalAlign.Middle
             Visible: =rectNSBanner.Visible
             Width: =Parent.Width - 100
