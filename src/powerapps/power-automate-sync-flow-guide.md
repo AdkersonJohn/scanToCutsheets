@@ -2,8 +2,8 @@
 
 ## Overview
 
-This flow reads `Refresh Asset Data.xlsx` from SharePoint, populates the
-`RefreshAssetInventory` SharePoint list, and recalculates the `StandardModels` list.
+This flow reads `Refresh Asset Data.xlsx` from SharePoint and populates the
+`RefreshAssetInventory` SharePoint list.
 
 **Schedule:** Weekly (Sunday 2:00 AM) or triggered manually.
 
@@ -47,6 +47,9 @@ This flow reads `Refresh Asset Data.xlsx` from SharePoint, populates the
      - SerialNumber: `Serial number` column from Excel row
      - Make: `Make` column from Excel row
      - Model: `Model` column from Excel row
+     - RAM: Use expression: `int(div(float(items('Apply_to_each')?['Total physical memory']), 1073741824))`
+     - CPU: `CPU name` column from Excel row
+     - DiskSize: Use expression: `int(div(float(items('Apply_to_each')?['Disk 1 size']), 1073741824))`
 
    > **Performance note:** For 65k rows, enable **Concurrency Control**
    > on the Apply to each loop (Settings > Concurrency Control > On,
@@ -54,28 +57,14 @@ This flow reads `Refresh Asset Data.xlsx` from SharePoint, populates the
 
 ---
 
-## Flow: Recalculate StandardModels
+## StandardModels — No Longer Needed
 
-This is harder to do purely in Power Automate (no native GROUP BY / COUNT).
+The standard device definition is now hardcoded in the Power App's OnScan formula
+(6 model families + spec thresholds). There is no StandardModels SharePoint list
+or sync flow to maintain.
 
-### Recommended approach: Office Script
-
-Create an Office Script in `Refresh Asset Data.xlsx` that:
-1. Reads all rows
-2. Counts (Make, Model) pairs
-3. Writes pairs with count >= 50 to a named range or output
-
-Then a second Power Automate flow:
-1. Runs the Office Script
-2. Reads the output
-3. Clears and repopulates StandardModels list
-
-### Alternative: Manual refresh
-
-Since StandardModels changes infrequently (only when new device types are
-deployed fleet-wide), you can re-run `generate-standard-models.py` locally
-and re-import the CSV to SharePoint whenever the fleet composition changes
-significantly (quarterly).
+If the standard model list changes, update the OnScan formula in Power Apps Studio.
+See `src/powerapps/formulas-quick-reference.md` for the current formula.
 
 ---
 
@@ -88,4 +77,4 @@ significantly (quarterly).
 3. Verify a known device can be found:
    - Search for `EW22-01322` in the DeviceName column
    - Confirm Make and Model are populated
-4. Verify StandardModels has ~80 items (if using automated recalculation)
+4. Verify RAM and DiskSize fields are populated with GB values (not bytes)
