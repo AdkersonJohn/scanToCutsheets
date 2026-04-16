@@ -68,6 +68,30 @@ GREEN (Needs Cut Sheet) → Show "Add to Session" button
 
 ---
 
+## Standard Device Definition
+
+### Standard Model Families (Allowlist)
+- Latitude 55 (matches LATITUDE 5520, 5530, 5540, 5550)
+- Latitude 74 (matches LATITUDE 7400-7450)
+- Optiplex Micro (matches OPTIPLEX MICRO, OPTIPLEX MICRO PLUS)
+- Dell Pro 14 Plus
+- Dell Pro 16 (NOT Plus variant)
+- Dell Pro Micro Plus
+
+### Standard Hardware Specs
+All three must pass for a device to be classified as standard:
+- RAM: 16 GB (15-16 GB accepted due to reporting variance)
+- CPU: i5 or Ultra 5
+- Disk: 256 GB SSD (230-260 GB accepted due to rounding)
+
+### Classification
+- **Standard:** Model matches a family AND all specs pass
+- **Nonstandard (model):** Model doesn't match any family
+- **Nonstandard (specs):** Model matches but specs fail (e.g., 8 GB RAM)
+- **Unknown:** Asset tag not found in RefreshAssetInventory
+
+---
+
 ## Power Platform Debug MCP Server
 
 ### Location
@@ -220,7 +244,8 @@ Warning Banner (NS):    varShowResult && !varMatchFound && !varDeviceTooNew && v
 | `varDeviceRecord` | Record | Result from RefreshAssetInventory lookup |
 | `varDeviceFound` | Boolean | Whether asset tag exists in inventory |
 | `varNonstandardStatus` | Text | "Yes" / "No" / "Unknown" — nonstandard classification |
-| `colStandardModels` | Collection | Loaded at OnStart from StandardModels SharePoint list (~80 rows) |
+| `varNonstandardReason` | Text | "model" / "specs" / "" — why device is nonstandard |
+| `varModelIsStandard` | Boolean | Intermediate check: does model match a standard family? |
 
 ### Excel Output File
 - **File:** `scanToCutsheetsViableAssetTags.xlsx`
@@ -245,7 +270,6 @@ Warning Banner (NS):    varShowResult && !varMatchFound && !varDeviceTooNew && v
 | FY26 Cut Sheets | https://encoretch.sharepoint.com/sites/CCHMCRefreshSupport | Legacy Asset Tag |
 | FY26 Cut Sheets Part 2 | https://encoretch.sharepoint.com/sites/CCHMCRefreshSupport | Legacy Asset Tag |
 | RefreshAssetInventory | https://encoretch.sharepoint.com/sites/CCHMCRefreshSupport | DeviceName (indexed) |
-| StandardModels | https://encoretch.sharepoint.com/sites/CCHMCRefreshSupport | Make, Model |
 
 ---
 
