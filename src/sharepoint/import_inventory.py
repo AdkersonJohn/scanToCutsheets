@@ -10,12 +10,14 @@ Run via: npm run inventory
 from __future__ import annotations
 
 import json
+import sys
 import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator
 
+import msal
 import requests
 from openpyxl import load_workbook
 
@@ -302,3 +304,71 @@ def clear_progress() -> None:
         PROGRESS_PATH.unlink()
     except FileNotFoundError:
         pass
+
+
+# --- Auth ---
+
+AUTH_AUTHORITY = "https://login.microsoftonline.com/common"
+
+
+def _build_msal_app(client_id: str):
+    cache = msal.SerializableTokenCache()
+    if CACHE_PATH.exists():
+        try:
+            cache.deserialize(CACHE_PATH.read_text())
+        except Exception:
+            pass
+    app = msal.PublicClientApplication(
+        client_id,
+        authority=AUTH_AUTHORITY,
+        token_cache=cache,
+    )
+    app._token_cache_ref = cache  # keep a ref for save-on-exit
+    return app
+
+
+def _save_cache(app) -> None:
+    cache = getattr(app, "_token_cache_ref", None)
+    if cache is not None and cache.has_state_changed:
+        CACHE_PATH.write_text(cache.serialize())
+
+
+def _try_client(client_id: str) -> str | None:
+    app = _build_msal_app(client_id)
+    # Try silent token acquisition first.
+    for acct in app.get_accounts():
+        result = app.acquire_token_silent(SCOPES, account=acct)
+        if result and "access_token" in result:
+            _save_cache(app)
+            return result["access_token"]
+
+    flow = app.initiate_device_flow(scopes=SCOPES)
+    if "user_code" not in flow:
+        return None
+    print(flow.get("message", "Visit https://microsoft.com/devicelogin"))
+    sys.stdout.flush()
+    result = app.acquire_token_by_device_flow(flow)
+    if "access_token" in result:
+        _save_cache(app)
+        return result["access_token"]
+    # Print the error so the user can distinguish "I cancelled" from "blocked".
+    print(f"Auth failed with client {client_id}: "
+          f"{result.get('error')} — {result.get('error_description')}",
+          file=sys.stderr)
+    return None
+
+
+def acquire_token() -> str:
+    """
+    Try each client ID in CLIENT_IDS in order. Return the first access token
+    obtained. Raises RuntimeError if all fail.
+    """
+    for client_id in CLIENT_IDS:
+        token = _try_client(client_id)
+        if token:
+            return token
+    raise RuntimeError(
+        "Could not acquire a SharePoint token with any public client ID. "
+        "Ask your site owner to grant consent to "
+        f"one of: {CLIENT_IDS}"
+    )
