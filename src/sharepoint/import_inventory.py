@@ -396,3 +396,140 @@ def acquire_token() -> str:
         "Ask your site owner to grant consent to "
         f"one of: {CLIENT_IDS}"
     )
+
+
+# --- Orchestration ---
+
+import argparse
+
+
+def _chunks(seq: list, n: int):
+    for i in range(0, len(seq), n):
+        yield seq[i:i + n]
+
+
+def clear_list(token: str) -> int:
+    ids = list_all_item_ids(token)
+    if not ids:
+        return 0
+    total = len(ids)
+    print(f"Deleting {total} existing items...")
+    for i, chunk in enumerate(_chunks(ids, BATCH_SIZE), start=1):
+        body, boundary = build_delete_batch_body(chunk, LIST_NAME)
+        post_batch(body, boundary, token)
+        done = min(i * BATCH_SIZE, total)
+        print(f"  deleted {done}/{total}")
+    return total
+
+
+def import_items(token: str, rows, resume_from: int = 0) -> None:
+    buffer: list[dict] = []
+    batch_idx = 0
+    sent = 0
+
+    for row in rows:
+        buffer.append(row)
+        if len(buffer) >= BATCH_SIZE:
+            batch_idx += 1
+            if batch_idx <= resume_from:
+                buffer.clear()
+                continue
+            body, boundary = build_batch_body(buffer, LIST_NAME)
+            post_batch(body, boundary, token)
+            sent += len(buffer)
+            save_progress("insert", batch_idx, total=-1)
+            if batch_idx % 10 == 0:
+                print(f"  inserted batch {batch_idx} ({sent} items)")
+            buffer.clear()
+
+    if buffer:
+        batch_idx += 1
+        if batch_idx > resume_from:
+            body, boundary = build_batch_body(buffer, LIST_NAME)
+            post_batch(body, boundary, token)
+            sent += len(buffer)
+            save_progress("insert", batch_idx, total=-1)
+
+    print(f"Inserted {sent} items across {batch_idx} batches.")
+
+
+def _confirm(prompt: str) -> bool:
+    try:
+        ans = input(prompt).strip().lower()
+    except EOFError:
+        return False
+    return ans == "yes"
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Load Refresh Asset Data.xlsx into SharePoint RefreshAssetInventory."
+    )
+    parser.add_argument("--file", required=True, help="Path to Refresh Asset Data.xlsx")
+    parser.add_argument("--clear-first", action="store_true",
+                        help="Delete all existing items before importing")
+    parser.add_argument("--resume", action="store_true",
+                        help="Resume an interrupted insert phase")
+    parser.add_argument("--dry-run", action="store_true",
+                        help="Print first 5 transformed rows, post nothing")
+    parser.add_argument("--limit", type=int, default=None,
+                        help="Only process the first N rows")
+    args = parser.parse_args()
+
+    xlsx = Path(args.file)
+    if not xlsx.exists():
+        print(f"Excel file not found: {xlsx}", file=sys.stderr)
+        return 2
+
+    if args.dry_run:
+        print(f"Reading {xlsx} (dry run)...")
+        sample = []
+        for row in iter_rows(str(xlsx), limit=args.limit or 5):
+            sample.append(row)
+            if len(sample) >= 5:
+                break
+        for r in sample:
+            print(json.dumps(r, indent=2))
+        print(f"Dry run OK. {len(sample)} rows shown.")
+        return 0
+
+    print("Authenticating...")
+    token = acquire_token()
+    print("Authenticated.")
+
+    count = list_item_count(token)
+    print(f"List currently has {count} items.")
+
+    resume_from = 0
+    if args.resume:
+        state = load_progress()
+        if not state or state.get("phase") != "insert":
+            print("No insert phase to resume.", file=sys.stderr)
+            return 2
+        resume_from = int(state.get("last_batch", 0))
+        print(f"Resuming from batch {resume_from}.")
+    elif args.clear_first:
+        if count > 0:
+            if not _confirm(
+                f"This will delete all {count} existing items in {LIST_NAME}. "
+                "Type 'yes' to continue: "):
+                print("Aborted.")
+                return 1
+            clear_list(token)
+        clear_progress()
+    else:
+        if count > 0:
+            print(f"List has {count} items. Use --clear-first to replace, "
+                  "or empty the list manually first.", file=sys.stderr)
+            return 2
+
+    print(f"Reading {xlsx}...")
+    rows = iter_rows(str(xlsx), limit=args.limit)
+    import_items(token, rows, resume_from=resume_from)
+    clear_progress()
+    print("Done.")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
