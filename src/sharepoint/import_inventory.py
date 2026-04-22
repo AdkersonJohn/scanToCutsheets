@@ -227,6 +227,30 @@ def sp_headers(token: str, extra: dict | None = None) -> dict:
     return headers
 
 
+def list_item_count(token: str) -> int:
+    url = f"{SITE_URL}/_api/web/lists/getbytitle('{LIST_NAME}')/ItemCount"
+    resp = requests.get(url, headers=sp_headers(token), timeout=60)
+    resp.raise_for_status()
+    return int(resp.json()["d"]["ItemCount"])
+
+
+def list_all_item_ids(token: str) -> list[int]:
+    """Return every item Id in the list, following OData paging."""
+    base = f"{SITE_URL}/_api/web/lists/getbytitle('{LIST_NAME}')/items"
+    params = {"$select": "Id", "$top": "5000"}
+    ids: list[int] = []
+    url = base
+    while url:
+        resp = requests.get(url, headers=sp_headers(token),
+                            params=params if url == base else None,
+                            timeout=120)
+        resp.raise_for_status()
+        data = resp.json()["d"]
+        ids.extend(int(r["Id"]) for r in data.get("results", []))
+        url = data.get("__next")
+    return ids
+
+
 def post_batch(body: str, boundary: str, token: str,
                max_retries: int = 5, base_delay: float = 2.0) -> None:
     """
