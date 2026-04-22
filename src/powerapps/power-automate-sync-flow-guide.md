@@ -1,3 +1,13 @@
+> **OBSOLETE (2026-04-22):** The Excel Online Business connector cannot
+> handle the 65k-row `Refresh Asset Data.xlsx` — it throttles via
+> `throttle.aad.ags.excel.flow` even after hour-plus cooldowns, and
+> there is no admin-consent-free way around it. The list is now
+> populated by `npm run inventory` (see `src/sharepoint/README-import.md`).
+> Keeping this file for reference only — do not try to build the flow
+> described below.
+
+---
+
 # Power Automate: Refresh Asset Data Sync Flow
 
 ## Overview

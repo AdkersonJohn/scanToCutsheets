@@ -271,6 +271,13 @@ Warning Banner (NS):    varShowResult && !varMatchFound && !varDeviceTooNew && v
 | FY26 Cut Sheets Part 2 | https://encoretch.sharepoint.com/sites/CCHMCRefreshSupport | Legacy Asset Tag |
 | RefreshAssetInventory | https://encoretch.sharepoint.com/sites/CCHMCRefreshSupport | DeviceName (indexed) |
 
+The `RefreshAssetInventory` list is populated by running
+`npm run inventory -- --clear-first` from the project root — a local
+Python script that reads `Refresh Asset Data.xlsx` and writes to
+SharePoint using the current user's delegated credentials. See
+`src/sharepoint/README-import.md`. The list refreshes about every
+four years, when Ryan re-exports the inventory from Absolute.
+
 ---
 
 ## Debugging Rules
