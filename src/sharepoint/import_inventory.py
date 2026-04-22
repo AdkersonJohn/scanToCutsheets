@@ -10,10 +10,12 @@ Run via: npm run inventory
 from __future__ import annotations
 
 import json
+import time
 import uuid
 from pathlib import Path
 from typing import Iterator
 
+import requests
 from openpyxl import load_workbook
 
 
@@ -203,3 +205,54 @@ def build_delete_batch_body(item_ids: list[int], list_name: str) -> tuple[str, s
     lines.append(f"--{batch_boundary}--")
     lines.append("")
     return "\r\n".join(lines), batch_boundary
+
+
+# --- HTTP & Retry ---
+
+
+class RetryExhaustedError(RuntimeError):
+    """Raised when a $batch call fails all retries."""
+
+
+def sp_headers(token: str, extra: dict | None = None) -> dict:
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Accept": "application/json;odata=verbose",
+    }
+    if extra:
+        headers.update(extra)
+    return headers
+
+
+def post_batch(body: str, boundary: str, token: str,
+               max_retries: int = 5, base_delay: float = 2.0) -> None:
+    """
+    POST a multipart/mixed $batch body to SharePoint with retry/backoff.
+    Retries 429 and 5xx; raises RetryExhaustedError on any other failure
+    or after max_retries exhausted.
+    """
+    url = f"{SITE_URL}/_api/$batch"
+    headers = sp_headers(token, {
+        "Content-Type": f"multipart/mixed; boundary={boundary}",
+    })
+
+    attempt = 0
+    while True:
+        resp = requests.post(url, headers=headers, data=body.encode("utf-8"), timeout=120)
+        if 200 <= resp.status_code < 300:
+            return
+        should_retry = resp.status_code == 429 or resp.status_code >= 500
+        if not should_retry or attempt >= max_retries:
+            raise RetryExhaustedError(
+                f"Batch POST failed: HTTP {resp.status_code}. Body: {resp.text[:500]}"
+            )
+        retry_after = resp.headers.get("Retry-After")
+        if retry_after is not None:
+            try:
+                delay = float(retry_after)
+            except ValueError:
+                delay = base_delay * (2 ** attempt)
+        else:
+            delay = base_delay * (2 ** attempt)
+        time.sleep(delay)
+        attempt += 1
