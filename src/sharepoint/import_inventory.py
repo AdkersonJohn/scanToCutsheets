@@ -9,6 +9,8 @@ Run via: npm run inventory
 
 from __future__ import annotations
 
+import json
+import uuid
 from pathlib import Path
 from typing import Iterator
 
@@ -125,3 +127,79 @@ def iter_rows(xlsx_path: str, limit: int | None = None) -> Iterator[dict]:
                 return
     finally:
         wb.close()
+
+
+# --- Batch Operations ---
+
+
+def _list_item_type(list_name: str) -> str:
+    # SharePoint list item content type: SP.Data.<ListName>ListItem
+    return f"SP.Data.{list_name}ListItem"
+
+
+def build_batch_body(items: list[dict], list_name: str) -> tuple[str, str]:
+    """
+    Build a multipart/mixed $batch body containing a single changeset with one
+    POST per item. Returns (body, outer_boundary).
+    """
+    batch_boundary = f"batch_{uuid.uuid4()}"
+    changeset_boundary = f"changeset_{uuid.uuid4()}"
+    list_url = f"{SITE_URL}/_api/web/lists/getbytitle('{list_name}')/items"
+    item_type = _list_item_type(list_name)
+
+    lines: list[str] = []
+    lines.append(f"--{batch_boundary}")
+    lines.append(f"Content-Type: multipart/mixed; boundary={changeset_boundary}")
+    lines.append("Content-Length: 1")
+    lines.append("Content-Transfer-Encoding: binary")
+    lines.append("")
+
+    for idx, item in enumerate(items, start=1):
+        payload = {"__metadata": {"type": item_type}, **item}
+        body_json = json.dumps(payload, separators=(",", ":"))
+        lines.append(f"--{changeset_boundary}")
+        lines.append("Content-Type: application/http")
+        lines.append("Content-Transfer-Encoding: binary")
+        lines.append(f"Content-ID: {idx}")
+        lines.append("")
+        lines.append(f"POST {list_url} HTTP/1.1")
+        lines.append("Accept: application/json;odata=verbose")
+        lines.append("Content-Type: application/json;odata=verbose")
+        lines.append("")
+        lines.append(body_json)
+        lines.append("")
+
+    lines.append(f"--{changeset_boundary}--")
+    lines.append(f"--{batch_boundary}--")
+    lines.append("")
+    return "\r\n".join(lines), batch_boundary
+
+
+def build_delete_batch_body(item_ids: list[int], list_name: str) -> tuple[str, str]:
+    """Build a $batch body that deletes each given item id."""
+    batch_boundary = f"batch_{uuid.uuid4()}"
+    changeset_boundary = f"changeset_{uuid.uuid4()}"
+    list_url = f"{SITE_URL}/_api/web/lists/getbytitle('{list_name}')/items"
+
+    lines: list[str] = []
+    lines.append(f"--{batch_boundary}")
+    lines.append(f"Content-Type: multipart/mixed; boundary={changeset_boundary}")
+    lines.append("Content-Length: 1")
+    lines.append("Content-Transfer-Encoding: binary")
+    lines.append("")
+
+    for idx, item_id in enumerate(item_ids, start=1):
+        lines.append(f"--{changeset_boundary}")
+        lines.append("Content-Type: application/http")
+        lines.append("Content-Transfer-Encoding: binary")
+        lines.append(f"Content-ID: {idx}")
+        lines.append("")
+        lines.append(f"DELETE {list_url}({item_id}) HTTP/1.1")
+        lines.append("Accept: application/json;odata=verbose")
+        lines.append("If-Match: *")
+        lines.append("")
+
+    lines.append(f"--{changeset_boundary}--")
+    lines.append(f"--{batch_boundary}--")
+    lines.append("")
+    return "\r\n".join(lines), batch_boundary
