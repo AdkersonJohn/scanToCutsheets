@@ -126,3 +126,34 @@ def test_acquire_token_falls_back_when_primary_client_returns_none(monkeypatch):
     token = mod.acquire_token()
     assert token == "TOKEN_FROM_FALLBACK"
     assert calls == mod.CLIENT_IDS  # primary tried first, then fallback
+
+
+@responses.activate
+def test_list_item_count_parses_json():
+    from src.sharepoint.import_inventory import list_item_count, LIST_NAME, SITE_URL
+    url = f"{SITE_URL}/_api/web/lists/getbytitle('{LIST_NAME}')/ItemCount"
+    responses.add(responses.GET, url, status=200,
+                  json={"d": {"ItemCount": 65438}})
+    assert list_item_count("t") == 65438
+
+
+@responses.activate
+def test_list_all_item_ids_follows_nextlink_pagination():
+    from src.sharepoint.import_inventory import list_all_item_ids, LIST_NAME, SITE_URL
+    base = f"{SITE_URL}/_api/web/lists/getbytitle('{LIST_NAME}')/items"
+    responses.add(
+        responses.GET, base,
+        status=200,
+        match=[responses.matchers.query_param_matcher(
+            {"$select": "Id", "$top": "5000"})],
+        json={"d": {"results": [{"Id": 1}, {"Id": 2}],
+                    "__next": f"{base}?$skiptoken=abc"}},
+    )
+    responses.add(
+        responses.GET, f"{base}",
+        status=200,
+        match=[responses.matchers.query_param_matcher({"$skiptoken": "abc"})],
+        json={"d": {"results": [{"Id": 3}]}},
+    )
+    ids = list_all_item_ids("t")
+    assert ids == [1, 2, 3]
