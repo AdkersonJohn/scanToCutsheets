@@ -228,8 +228,8 @@ def post_batch(body: str, boundary: str, token: str,
                max_retries: int = 5, base_delay: float = 2.0) -> None:
     """
     POST a multipart/mixed $batch body to SharePoint with retry/backoff.
-    Retries 429 and 5xx; raises RetryExhaustedError on any other failure
-    or after max_retries exhausted.
+    Retries 429, 5xx, and network errors (ConnectionError, Timeout);
+    raises RetryExhaustedError on any other failure or after max_retries exhausted.
     """
     url = f"{SITE_URL}/_api/$batch"
     headers = sp_headers(token, {
@@ -238,7 +238,18 @@ def post_batch(body: str, boundary: str, token: str,
 
     attempt = 0
     while True:
-        resp = requests.post(url, headers=headers, data=body.encode("utf-8"), timeout=120)
+        try:
+            resp = requests.post(url, headers=headers, data=body.encode("utf-8"), timeout=120)
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as exc:
+            if attempt >= max_retries:
+                raise RetryExhaustedError(
+                    f"Batch POST failed due to network error: {exc}"
+                ) from exc
+            delay = base_delay * (2 ** attempt)
+            time.sleep(delay)
+            attempt += 1
+            continue
+
         if 200 <= resp.status_code < 300:
             return
         should_retry = resp.status_code == 429 or resp.status_code >= 500
