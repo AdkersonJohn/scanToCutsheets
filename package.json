@@ -19,7 +19,9 @@
     "lint": "eslint src tests --ext .ts,.tsx",
     "lint:fix": "eslint src tests --ext .ts,.tsx --fix",
     "clean": "rm -rf dist coverage test-results",
-    "prepare": "npm run build"
+    "prepare": "npm run build",
+    "inventory": "test -d src/sharepoint/.venv || python3 -m venv src/sharepoint/.venv && src/sharepoint/.venv/bin/pip install -q -r src/sharepoint/requirements.txt && src/sharepoint/.venv/bin/python src/sharepoint/import_inventory.py --file \"Refresh Asset Data.xlsx\"",
+    "inventory:test": "src/sharepoint/.venv/bin/pip install -q -r src/sharepoint/requirements-dev.txt && src/sharepoint/.venv/bin/python -m pytest src/sharepoint/tests -v"
   },
   "keywords": [
     "power-apps",
