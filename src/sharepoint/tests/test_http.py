@@ -64,3 +64,34 @@ def test_post_batch_does_not_retry_on_400():
     with pytest.raises(RetryExhaustedError):
         post_batch("body", "b", token="t", max_retries=5, base_delay=0)
     assert len(responses.calls) == 1  # no retries on 4xx other than 429
+
+
+@responses.activate
+def test_post_batch_retries_on_connection_error(monkeypatch):
+    import requests as real_requests
+    sleeps: list[float] = []
+    monkeypatch.setattr(
+        "src.sharepoint.import_inventory.time.sleep",
+        lambda s: sleeps.append(s),
+    )
+    responses.add(responses.POST, BATCH_URL,
+                  body=real_requests.exceptions.ConnectionError("boom"))
+    responses.add(responses.POST, BATCH_URL, status=200, body="ok")
+
+    post_batch("body", "b", token="t", max_retries=3, base_delay=1)
+    assert len(responses.calls) == 2
+    assert sleeps == [1.0]
+
+
+@responses.activate
+def test_post_batch_raises_after_max_retries_on_connection_error(monkeypatch):
+    import requests as real_requests
+    monkeypatch.setattr(
+        "src.sharepoint.import_inventory.time.sleep", lambda s: None)
+    for _ in range(5):
+        responses.add(responses.POST, BATCH_URL,
+                      body=real_requests.exceptions.ConnectionError("boom"))
+    with pytest.raises(RetryExhaustedError) as exc:
+        post_batch("body", "b", token="t", max_retries=4, base_delay=0)
+    # Error message should reference the network failure
+    assert "connection" in str(exc.value).lower() or "network" in str(exc.value).lower()
