@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import time
 import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterator
 
@@ -267,3 +268,37 @@ def post_batch(body: str, boundary: str, token: str,
             delay = base_delay * (2 ** attempt)
         time.sleep(delay)
         attempt += 1
+
+
+# --- Progress ---
+
+
+def save_progress(phase: str, last_batch: int, total: int) -> None:
+    """Save progress state to disk, preserving started_at if already set."""
+    existing = load_progress() or {}
+    started_at = existing.get("started_at") or datetime.now(timezone.utc).isoformat()
+    data = {
+        "phase": phase,
+        "last_batch": last_batch,
+        "total": total,
+        "started_at": started_at,
+    }
+    PROGRESS_PATH.write_text(json.dumps(data, indent=2))
+
+
+def load_progress() -> dict | None:
+    """Load progress state from disk, returning None if file missing or invalid."""
+    if not PROGRESS_PATH.exists():
+        return None
+    try:
+        return json.loads(PROGRESS_PATH.read_text())
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def clear_progress() -> None:
+    """Delete progress file, silently succeeding if file does not exist."""
+    try:
+        PROGRESS_PATH.unlink()
+    except FileNotFoundError:
+        pass
