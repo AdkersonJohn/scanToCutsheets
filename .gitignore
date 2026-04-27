@@ -40,3 +40,11 @@ coverage/
 # Azure Functions local settings
 backend/local.settings.json
 *.zip
+
+# Python venv + import script state (src/sharepoint/import_inventory.py)
+src/sharepoint/.venv/
+src/sharepoint/.token_cache.json
+src/sharepoint/.import_progress.json
+src/sharepoint/__pycache__/
+src/sharepoint/tests/__pycache__/
+src/sharepoint/.pytest_cache/
